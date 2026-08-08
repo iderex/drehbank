@@ -45,8 +45,38 @@ the workflow is right and this file is a defect.
 failure from a compile error. If it refuses, run the fetch step again and read
 what it says.
 
-There is no format or lint gate yet, so this file states no format or lint
-command. That gate is #17 and the commands go here when it lands.
+## Format and lint
+
+Check the formatting:
+
+    cargo fmt --all -- --check
+
+`--check` writes nothing. It prints the difference and exits non-zero; drop it
+and the formatter applies the change instead. `--all` reaches every workspace
+member, so the scaling harness is formatted like everything else even though no
+ordinary build touches it.
+
+Lint the workspace:
+
+    cargo clippy --workspace --all-targets --locked --offline
+
+Neither command carries a level. The lint levels are in the `[workspace.lints]`
+table in `Cargo.toml`, which is what `cargo clippy` reads, so the set the gate
+refuses and the set you see are the same set and neither depends on a flag you
+have to remember. The whole default compiler set and the whole default clippy
+set are errors here, and so is `unsafe`.
+
+Where a lint genuinely has to be allowed, allow it at the site with the reason
+written next to it, so that it is one thing somebody argued. Lowering the level
+in `Cargo.toml` turns it off for the tree and for everyone after you.
+
+The formatter's own settings are in `rustfmt.toml`, and there are two of them.
+The rest is rustfmt's defaults on purpose.
+
+Both commands in this section are strings
+`.github/workflows/format-and-lint.yml` runs, character for character, under the
+same rule as above: where this file and that workflow differ, the workflow is
+right and this file is the defect.
 
 ## Sign your work
 

@@ -1,0 +1,16 @@
+# The formatter's defaults are the configuration, apart from the two lines
+# below. A repository that re-decides every default gets a layout nobody can
+# predict and a diff nobody can read against any other Rust project, and every
+# re-decided line is a line somebody has to argue about later.
+
+# Pinned rather than inherited from the crate edition, so that raising the
+# toolchain pin cannot reformat the tree as a side effect. A formatting change
+# arriving inside a compiler upgrade buries whatever else that change did.
+style_edition = "2024"
+
+# Auto rather than Unix, and this one is not cosmetic. The blobs in git carry
+# LF, and a checkout on Windows with core.autocrlf on writes CRLF to disk.
+# Pinning Unix here makes `cargo fmt --check` red on that checkout and green in
+# the gate, which is exactly the split between a local run and a gate run that
+# this gate exists to close.
+newline_style = "Auto"
