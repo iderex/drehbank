@@ -12,3 +12,8 @@ path = "src/main.rs"
 
 [dependencies]
 drehbank-core = { path = "../drehbank-core" }
+
+# The workspace decides the lint levels, so this crate cannot drift from the
+# gate by keeping its own.
+[lints]
+workspace = true

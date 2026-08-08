@@ -1,0 +1,78 @@
+name: Format and lint
+
+on:
+  pull_request:
+    branches: ["**"]
+  # On main as well, so that a green tick on the mainline means the same thing as
+  # a green tick on the change that produced it.
+  push:
+    branches: [main]
+
+# Read-only: this gate reads the tree and writes nothing back. Its report is the
+# check result and the job log.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The check-run name is this job's `name:`, and #27 attaches `Format and lint`
+  # to the branch rule by that exact string. Renaming the job detaches it from
+  # the rule and leaves a tick that means nothing, so the name is an interface
+  # and changes only alongside the rule.
+  #
+  # One runner rather than a matrix, unlike the build gate. A matrix leg's
+  # check-run name carries its matrix values, so the stable name would have to
+  # come from an aggregate job, and there is nothing here for a second platform
+  # to find: both steps read source text, the lint levels come from the
+  # workspace manifest rather than from the host, and no lint that varies with
+  # the target pointer width is enabled.
+  format-and-lint:
+    name: Format and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not persisted into .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain the pin selected
+        # rust-toolchain.toml decides this, not the runner image, and it also
+        # names the two components this job needs. Printing the versions means a
+        # run that silently used something else is visible in the log rather
+        # than inferred from the absence of a complaint.
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          cargo fmt --version
+          cargo clippy --version
+
+      - name: Restore dependencies
+        # Separate from the lint so that a dependency that cannot be resolved is
+        # a different red step from a lint failure. --locked refuses to move the
+        # lockfile.
+        run: cargo fetch --locked
+
+      - name: Check the formatting
+        # --check reformats nothing and reports the difference. --all reaches
+        # every workspace member, including the ones outside the default set, so
+        # the scaling harness is formatted like the rest of the tree even though
+        # no ordinary build touches it.
+        run: cargo fmt --all -- --check
+
+      - name: Lint the whole workspace
+        # No `-D warnings` on this line on purpose. The levels are in the
+        # `[workspace.lints]` table in Cargo.toml, so this command and the one a
+        # contributor runs are the same string and select the same set. A level
+        # passed here instead would be one the contributor cannot see.
+        #
+        # --all-targets adds the test and example targets, so a lint failure in
+        # test code reds this too. --offline proves the restore step above was
+        # the only moment that needed the network.
+        run: cargo clippy --workspace --all-targets --locked --offline

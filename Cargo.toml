@@ -26,6 +26,30 @@ version = "0.0.0"
 # publishable until it is answered.
 publish = false
 
+# The lint levels live here and not in the workflow. `cargo clippy` reads this
+# table, so the command a contributor runs and the command the gate runs select
+# the same set without either of them carrying a flag. A level that lives in a
+# workflow file is a level nobody can see from a red run on their own machine,
+# and reproducing the failure then starts with reading YAML.
+[workspace.lints.rust]
+# The whole default set is an error rather than advice, which is the position
+# the build gate already takes with RUSTFLAGS. Stating it here means the lint
+# gate takes it too, on the members the default build never reaches.
+warnings = "deny"
+# The reason for choosing this language in 0001 was that a bounds mistake in
+# index arithmetic is defined behaviour rather than undefined behaviour, and
+# `unsafe` is where that stops being true. This is not a ban: a block that needs
+# it carries `#[allow(unsafe_code)]` at the site with the argument next to it,
+# so every one of them is a thing somebody wrote down. Lowering this line
+# instead makes them invisible.
+unsafe_code = "deny"
+
+[workspace.lints.clippy]
+# The default clippy set, at error. The priority puts the group below any
+# single lint named after it, so a later exception is one line rather than a
+# restructure.
+all = { level = "deny", priority = -1 }
+
 # The throughput path.
 [profile.release]
 opt-level = 3

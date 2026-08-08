@@ -13,3 +13,8 @@ path = "src/main.rs"
 # None yet. What this harness measures, and therefore what it has to link, is
 # issue #51.
 [dependencies]
+
+# The workspace decides the lint levels, so this crate cannot drift from the
+# gate by keeping its own.
+[lints]
+workspace = true
