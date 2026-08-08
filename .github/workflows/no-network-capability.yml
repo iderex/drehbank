@@ -1,0 +1,59 @@
+name: No network capability
+
+on:
+  pull_request:
+    branches: ["**"]
+  # On main as well, so that a green tick on the mainline means the same thing as
+  # a green tick on the change that produced it.
+  push:
+    branches: [main]
+
+# Read-only: this gate resolves the graph and reads it. It writes nothing back.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The check-run name is this job's `name:`, and #27 attaches
+  # `No network capability` to the branch rule by that exact string.
+  #
+  # Its own check run rather than a leg of the suite, even though the refusal is
+  # written as a test. `Test` going red says a test failed; the branch rule has
+  # to be able to require this particular property by name, and #53 lists it as
+  # one of the four this board adds beyond the target gate.
+  no-network-capability:
+    name: No network capability
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not persisted into .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain the pin selected
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          rustc --version
+
+      - name: Restore dependencies
+        # The refusal reads the resolved graph, so the graph has to be
+        # resolvable first. Separate from the check so that a dependency that
+        # cannot be resolved is a different red step from a refusal.
+        run: cargo fetch --locked
+
+      - name: Refuse network capability in the shipped graph
+        # --offline is not only hygiene here. This gate is about what the tree
+        # can reach, and a step that could reach the network while asking
+        # whether anything can reach the network would be answering its own
+        # question badly.
+        run: >
+          cargo test --package drehbank-core
+          --test no_network_capability --locked --offline
