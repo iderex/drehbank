@@ -91,6 +91,10 @@ guard is about. Put that in the pull request body. A near-miss that could not
 have failed proves less than one that nearly did, so pick the one-character
 mistake somebody will actually make.
 
+Where it adds a dependency, an entry in `docs/dependencies.md`. That page holds
+the position on how large the graph should be and the four things every entry has
+to answer, and a dependency arriving without one is a dependency nobody argued.
+
 Where it changes what a user sees, which of the three documents that touches.
 
 ## The breaking change rule
