@@ -246,21 +246,42 @@ fn string_field(object: &str, key: &str) -> Option<String> {
     None
 }
 
+/// What the graph of `member` is refused for, by package name.
+///
+/// A function rather than the body of a test, so that the refusal itself can be
+/// run against a graph that carries a client. Otherwise the only thing anyone
+/// could check is that it stays quiet on a tree it has never had to refuse.
+fn refusals_by_name(member: &str, graph: &[Reached]) -> Vec<String> {
+    let denied: BTreeSet<&str> = DENIED.into_iter().collect();
+    graph
+        .iter()
+        .filter(|package| denied.contains(package.name.as_str()))
+        .map(|package| {
+            format!(
+                "{member}: {} reached by {}",
+                package.name,
+                package.path.join(" -> ")
+            )
+        })
+        .collect()
+}
+
+/// What the resolved metadata is refused for, by declared link.
+fn refusals_by_link(metadata: &str) -> Vec<String> {
+    let denied: BTreeSet<&str> = DENIED_LINKS.into_iter().collect();
+    declared_links(metadata)
+        .into_iter()
+        .filter(|(_, links)| denied.contains(links.as_str()))
+        .map(|(name, links)| format!("{name} declares links = {links:?}"))
+        .collect()
+}
+
 #[test]
 fn no_package_in_a_guarded_graph_is_on_the_denied_list() {
-    let denied: BTreeSet<&str> = DENIED.into_iter().collect();
-    let mut refusals = Vec::new();
-    for member in GUARDED {
-        for package in resolved_graph(member) {
-            if denied.contains(package.name.as_str()) {
-                refusals.push(format!(
-                    "{member}: {} reached by {}",
-                    package.name,
-                    package.path.join(" -> ")
-                ));
-            }
-        }
-    }
+    let refusals: Vec<String> = GUARDED
+        .into_iter()
+        .flat_map(|member| refusals_by_name(member, &resolved_graph(member)))
+        .collect();
     assert!(
         refusals.is_empty(),
         "network-capable package(s) in the shipped graph:\n{}",
@@ -270,13 +291,8 @@ fn no_package_in_a_guarded_graph_is_on_the_denied_list() {
 
 #[test]
 fn no_package_in_the_resolved_metadata_links_a_networking_library() {
-    let denied: BTreeSet<&str> = DENIED_LINKS.into_iter().collect();
     let metadata = run(&["metadata", "--format-version", "1", "--locked", "--offline"]);
-    let refusals: Vec<String> = declared_links(&metadata)
-        .into_iter()
-        .filter(|(_, links)| denied.contains(links.as_str()))
-        .map(|(name, links)| format!("{name} declares links = {links:?}"))
-        .collect();
+    let refusals = refusals_by_link(&metadata);
     assert!(
         refusals.is_empty(),
         "package(s) linking a system networking library:\n{}",
@@ -306,7 +322,10 @@ fn every_guarded_graph_was_actually_read() {
 
 #[cfg(test)]
 mod parsing {
-    use super::{DENIED, DENIED_LINKS, declared_links, parse_tree, string_field};
+    use super::{
+        DENIED, DENIED_LINKS, declared_links, parse_tree, refusals_by_link, refusals_by_name,
+        string_field,
+    };
 
     /// The shape `cargo tree --prefix depth --format {p}` produces, with a
     /// client three levels down, which is where one actually arrives.
@@ -362,6 +381,24 @@ mod parsing {
         assert_eq!(found, ["reqwest", "hyper"]);
     }
 
+    /// The refusal itself, run against a graph that carries a client.
+    ///
+    /// The two tests over the real tree are green because the real tree has
+    /// nothing in it to refuse, which says nothing about whether they could
+    /// refuse anything. This is the same function on a graph that has to be
+    /// refused, and what it has to produce is the chain rather than the name.
+    #[test]
+    fn the_refusal_names_the_package_and_the_chain_that_reached_it() {
+        let refusals = refusals_by_name("drehbank-cli", &parse_tree(TREE));
+        assert_eq!(
+            refusals,
+            [
+                "drehbank-cli: reqwest reached by drehbank-cli -> drehbank-core -> fancy-oracle -> reqwest",
+                "drehbank-cli: hyper reached by drehbank-cli -> drehbank-core -> fancy-oracle -> reqwest -> hyper",
+            ]
+        );
+    }
+
     /// A description carrying a brace inside a quoted string, which is what a
     /// counter that does not know about strings gets wrong.
     const METADATA: &str = r#"{"packages":[
@@ -377,6 +414,19 @@ mod parsing {
             [("openssl-sys".to_owned(), "openssl".to_owned())]
         );
         assert!(DENIED_LINKS.contains(&"openssl"));
+    }
+
+    /// The link refusal, run against metadata that has to be refused.
+    ///
+    /// This is the half a graph carrying an ordinary client does not exercise:
+    /// a pure-Rust client pulls in no `-sys` wrapper, so the tree has to be one
+    /// with a declared link in it, and here that is the fixture.
+    #[test]
+    fn a_wrapper_declaring_a_networking_library_is_refused_by_its_link() {
+        assert_eq!(
+            refusals_by_link(METADATA),
+            [r#"openssl-sys declares links = "openssl""#]
+        );
     }
 
     #[test]
