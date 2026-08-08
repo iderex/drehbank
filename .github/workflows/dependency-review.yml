@@ -13,11 +13,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # No `name:` on this job: the "Protect main" ruleset's required status check
-  # matches the literal check-run name, which defaults to the job id
-  # ("dependency-review") when no `name:` is set. Overriding it here would
-  # rename the check run and silently break the required-status-check gate.
+  # The check-run name is the job's `name:`, and the job id when no `name:` is
+  # set. The file-level `name:` above is the workflow name and never reaches a
+  # check run. #26 requires this check to arrive as the literal string
+  # "Dependency review", and #27 is where check names start being required by
+  # the branch rules, so the name has to be right before that lands.
   dependency-review:
+    name: Dependency review
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
