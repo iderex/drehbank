@@ -1,7 +1,6 @@
 # 0013. Personal data never leaves the host
 
-Status: decided, with one agreement named below that cannot be checked yet.
-Raised in issue #15.
+Status: decided. Raised in issue #15.
 
 ## The rule
 
@@ -60,11 +59,50 @@ if a field would let a reader of the file identify the machine or the person who
 ran it, it does not go in the file, and no argument about debugging convenience
 overrides that.
 
-**This list has to agree with 0010, and that cannot be checked yet.** The
-on-disk format is decided in 0010, which has not landed. Until it does, the list
-above is the constraint the format has to satisfy, not a statement about what the
-format says. Issue #15 stays open on that agreement, and it is checked by reading
-the two lists against each other once 0010 exists.
+## The agreement with 0010, read from this side
+
+0010 decides the on-disk format and has landed, so the two lists above are read
+against it rather than held as a constraint waiting for something to satisfy. The
+reading is against the reference a reader will have:
+
+    $ git fetch origin && git rev-parse origin/main
+    32c0b868ac0064d9335a7c554a37b4904b36a335
+    $ git show origin/main:docs/decisions/0010-file-format.md | sed -n '/^## Every field a result file must carry$/,/^## How a series is written$/p'
+    $ git show origin/main:docs/decisions/0010-file-format.md | sed -n '/^## What is deliberately not recorded$/,/^## The digest/p'
+
+The omissions agree item for item and in both directions. Every item on the list
+above appears on 0010's, and 0010's list carries nothing this document does not
+omit. That direction is the one that matters: an omission dropped on the way into
+the format is the failure this decision exists to prevent, and it would show as
+an item here with no counterpart there.
+
+The recorded fields agree in the direction this document can constrain. Every
+item on the recorded list above is a required field of a result file in 0010:
+`package-version`, `input-digest`, `target-order` with `order-reached`,
+`polydisc`, `divisor-threshold`, the module blocks with `module-source`,
+`coefficient-type`, `chunk-target`, and the estimate block that carries the
+estimate object of 0008 in full.
+
+0010 requires further fields that this document does not name, and that is not a
+disagreement. `drehbank-format`, `kind`, `degrees-of-freedom`, `variables`,
+`truncation-order`, the seven convention records, `frequency`, `polydisc-source`,
+`threshold-default` and `worst-divisor` are all properties of the mathematics or
+of what the operator asked for. None of them is derived from the machine, the
+account or the clock, which is the only test this document applies to a field it
+did not ask for. A recorded list that had to be exhaustive would make every new
+field in the format a change to this decision, and the rule stated above with the
+omissions is the test instead.
+
+One pair is worth naming because it looks like an inconsistency and is not. The
+chunk target is recorded and the thread count is omitted. The chunk target fixes
+the partition and therefore the reduction order, so it is part of what determines
+the answer; the thread count determines nothing, by 0009, and a file that carried
+it would invite a reader to believe it did. 0010 says the same thing at the same
+place, which is the agreement working rather than a coincidence.
+
+This is a reading of two documents and not a command that compares them. Nothing
+in this repository compares two prose lists, and the sentences above are claims
+about what a reader finds when they run the commands.
 
 ## The mechanical check
 
