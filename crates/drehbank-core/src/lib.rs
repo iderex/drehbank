@@ -4,12 +4,13 @@
 //! the truncated series and its arithmetic, the Poisson bracket, the Lie
 //! transforms, the resonance handling and the remainder estimates.
 //!
-//! It is empty today. Issue #16 lays out the workspace and pins the toolchain
-//! and nothing else, so that the first mathematics lands in a tree whose shape
-//! has already been argued. The monomial index is issue #28.
+//! The monomial index of issue #28 is in [`monomial`], and it is the first of
+//! those. Everything else in the list is still to come.
 //!
 //! Nothing in this crate may depend on the command line, so that the boundary
 //! the dependency check applies to is the one the workspace declares.
+
+pub mod monomial;
 
 #[cfg(test)]
 mod tests {
