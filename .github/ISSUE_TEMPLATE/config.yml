@@ -1,0 +1,5 @@
+# A defect and a proposal are the two shapes an issue takes here, and both
+# templates ask for evidence and for a done condition. Opening an issue without
+# one stays possible, because a report that would otherwise go unwritten is
+# worth more than a form filled in badly.
+blank_issues_enabled: true
