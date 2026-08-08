@@ -1,7 +1,6 @@
 # 0005. The Lie transform engine and its memory schedule
 
-Status: decided, with one dependency named below that has not landed yet. Raised
-in issue #7.
+Status: decided. Raised in issue #7.
 
 ## The decision
 
@@ -13,25 +12,43 @@ reversed.
 
 ## The convention this document is written in, and its dependency
 
-The recursion below is written in one convention, stated here in full so that the
-indices can be read without guessing.
+The recursion below is written in the conventions of 0004, and this document
+fixes none of them. What the indices depend on is item 1 for the variables and
+their order, item 3 for the Poisson bracket and its sign, and item 4 for the
+placement of the generating function in the second argument, for the expansion of
+`H` and of `chi` in homogeneous degree with no factorial in the definition, and
+for the absence of a small parameter in the grading. A reader who wants any of
+those spelled out reads them there, because a second spelling here is a second
+thing to keep in step and it would eventually disagree.
 
-Phase space is `z = (q_1, ..., q_v, p_1, ..., p_v)`, with `v` degrees of freedom
-and `m = 2v` variables. The Poisson bracket is
+This document was written before 0004 landed and declared those three items in
+full at this place, which is what 0004's closing section read when it recorded
+that the two agree. The declaration is gone and the reference replaces it: the
+items it declared are the items named above, the agreement 0004 recorded is what
+made the replacement a reference rather than a change of convention, and no index
+below moved.
 
-    {f, g} = sum over j = 1..v of ( df/dq_j * dg/dp_j - df/dp_j * dg/dq_j )
+The check was made again here rather than taken from the other side, against the
+reference a reader will have:
 
-The Hamiltonian is expanded in homogeneous degree about an equilibrium at the
-origin, `H = H_2 + H_3 + H_4 + ...`, with `H_d` homogeneous of degree `d` in `z`.
-The generating function is `chi = chi_3 + chi_4 + ...`, with `chi_{j+2}`
-homogeneous of degree `j + 2`.
+    $ git fetch origin && git rev-parse origin/main
+    32c0b868ac0064d9335a7c554a37b4904b36a335
+    $ git show origin/main:docs/decisions/0004-conventions.md | sed -n '/^## 1\./,/^## 2\./p;/^## 3\./,/^## 5\./p'
 
-0004 is where the canonical conventions are fixed for the whole package, and it
-has not landed. Until it does, the paragraph above is this document's own
-declaration and not a reference to a settled one. If 0004 fixes a different sign
-in the bracket or a different variable ordering, this document is re-read against
-it and the indices below are restated, not reinterpreted. That is the dependency,
-and issue #7 stays open on it.
+Reading that output against the recursion below: the variable order is
+`(q_1..q_v, p_1..p_v)`, the bracket is
+`sum over j of ( df/dq_j * dg/dp_j - df/dp_j * dg/dq_j )`, the generator sits in
+the second argument of every bracket in this document, the expansion of the
+generator is `chi_3 + chi_4 + ...` with no factorial, and the homological
+equation `K_(d+2) = R_(d+2) + (1/d) { H_2, B_d }` that item 4 quotes is derived
+below rather than assumed. That is a reading of two documents and not a command
+that compares them, and nothing in this repository compares two prose
+declarations.
+
+One direction of the dependency remains and it points the other way. The `1/d` in
+the equation that closes a group is derived here, and item 4 of 0004 quotes it
+from here rather than deciding it. If the derivation below is ever corrected, the
+quotation in 0004 is corrected with it and in the same change.
 
 ## The recursion, with indices
 
