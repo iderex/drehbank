@@ -10,6 +10,7 @@ publish.workspace = true
 # arbitrary-precision integer arithmetic is wanted here, and the license of the
 # crate that supplies it is an open entry in issue #2.
 [dependencies]
+ureq = "3.4.0"
 
 # The workspace decides the lint levels, so this crate cannot drift from the
 # gate by keeping its own.
