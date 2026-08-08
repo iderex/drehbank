@@ -27,4 +27,19 @@ mod tests {
         let index = std::hint::black_box(usize::MAX);
         std::hint::black_box(index + 1);
     }
+
+    /// A deliberate defect, held on this branch and never merged, so that the
+    /// `Test` check can be shown red while `Build` stays green. See #18.
+    ///
+    /// It compiles cleanly and warns about nothing, which is the point: a
+    /// failing assertion is not a compile problem and the two checks have to
+    /// say different things about it.
+    #[test]
+    fn a_deliberately_failing_assertion() {
+        let terms_at_degree_two_in_two_variables = 3;
+        assert_eq!(
+            terms_at_degree_two_in_two_variables, 4,
+            "held on a proof branch for #18; the real dimension table is #28"
+        );
+    }
 }
