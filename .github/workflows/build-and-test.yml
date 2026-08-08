@@ -1,0 +1,145 @@
+name: Build and test
+
+on:
+  pull_request:
+    branches: ["**"]
+  # On main as well, so that a green tick on the mainline means the same thing as
+  # a green tick on the change that produced it.
+  push:
+    branches: [main]
+
+# Read-only: the gate compiles and runs the tree, it never writes to the repo.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # The two check runs the branch rule will require are the aggregate jobs
+  # `Build` and `Test` at the bottom of this file, not the matrix legs. A matrix
+  # leg's check-run name carries its matrix values, so it changes the day the
+  # matrix changes, and #27 has to name something that does not move. The legs
+  # below are where the work happens; the aggregates are where the name is
+  # stable.
+
+  compile:
+    name: Compile on ${{ matrix.os }}
+    strategy:
+      # Both platforms report. The point of the matrix is to see index and
+      # floating point behaviour that differs between them, and stopping the
+      # other leg on the first failure hides exactly that.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    env:
+      # Warnings are errors, and this is not a matter of taste. The two warnings
+      # that matter most here, an unused result and a comparison that is always
+      # true, are both symptoms of an index mistake, and an index mistake in this
+      # package produces a plausible wrong number rather than a crash.
+      RUSTFLAGS: -D warnings
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not persisted into .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain the pin selected
+        # rust-toolchain.toml decides this, not the runner image. Printing it
+        # means a run that silently used the image default is visible in the log
+        # rather than inferred from the absence of a complaint.
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          rustc --version
+
+      - name: Restore dependencies
+        # Separate from the build so that a dependency that cannot be resolved
+        # is a different red step from a compile failure. --locked refuses to
+        # move the lockfile, so the gate builds the dependency set that will
+        # ship rather than one it resolved for itself.
+        run: cargo fetch --locked
+
+      - name: Build the whole workspace
+        # --workspace reaches the members the default build leaves out, so the
+        # scaling harness is compiled and linted here even though no ordinary
+        # build touches it. --all-targets adds the test and example targets, so
+        # a warning in test code reds this too. --offline proves the restore
+        # step above was the only moment that needed the network.
+        run: cargo build --workspace --all-targets --locked --offline
+
+  suite:
+    name: Suite on ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Report the toolchain the pin selected
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          rustc --version
+
+      - name: Restore dependencies
+        run: cargo fetch --locked
+
+      - name: Run the default suite
+        # No --workspace: this is the default set, which is what a contributor
+        # runs and what the scaling harness is deliberately outside of. The
+        # runner account is unprivileged and no step grants it anything, which
+        # is one half of what the headless conformance check in #20 verifies
+        # rather than assumes. Warnings are not errors here, so a failing test
+        # reds this check and a warning does not.
+        run: cargo test --locked --offline
+
+  # Aggregates. Each one is red unless every leg of its matrix passed, including
+  # when a leg was cancelled or skipped, so neither name can go green on a matrix
+  # that did not run.
+  build:
+    name: Build
+    needs: compile
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every compile leg to have passed
+        env:
+          RESULT: ${{ needs.compile.result }}
+        run: |
+          set -euo pipefail
+          echo "compile matrix result: ${RESULT}"
+          if [ "${RESULT}" != "success" ]; then
+            echo "::error::At least one compile leg did not pass."
+            exit 1
+          fi
+
+  test:
+    name: Test
+    needs: suite
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Require every suite leg to have passed
+        env:
+          RESULT: ${{ needs.suite.result }}
+        run: |
+          set -euo pipefail
+          echo "suite matrix result: ${RESULT}"
+          if [ "${RESULT}" != "success" ]; then
+            echo "::error::At least one suite leg did not pass."
+            exit 1
+          fi
