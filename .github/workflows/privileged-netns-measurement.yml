@@ -1,0 +1,101 @@
+# A measurement, not a gate. The second of two.
+#
+# The first one, on the pull request that added
+# .github/workflows/headless-isolation-measurement.yml, established that an
+# unprivileged account on this image cannot create a network namespace at all:
+# both spellings of `unshare --user ... --net` fail on the uid map because
+# kernel.apparmor_restrict_unprivileged_userns is on. That left exactly one
+# route to the network condition of issue #20, and left it unmeasured: a step
+# that holds privilege briefly, takes the network away, and hands the suite back
+# to the unprivileged account before it starts.
+#
+# This reads whether that route works and what it costs. The three things it has
+# to get right are that the network is genuinely gone, that the process the suite
+# runs in is genuinely unprivileged, and that the toolchain is still reachable
+# once the environment has been through two privilege changes. The third is the
+# one that quietly breaks, so it is read rather than assumed.
+#
+# Nothing here refuses anything and no step fails the job, for the same reason as
+# the first: a red line would say the measurement did not run, which is not the
+# same statement as the route not working.
+#
+# Not meant for the default branch. It runs once, its log is quoted into #20, and
+# it is closed.
+name: Privileged network namespace measurement
+
+on:
+  pull_request:
+    branches: ["**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Privileged route on ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: The baseline this is measured against
+        shell: bash
+        run: |
+          set +e
+          echo "outside: $(id -un) uid=$(id -u)"
+          command -v cargo; echo "command -v cargo exit=$?"
+          curl -sS -m 10 -o /dev/null -w 'http_code=%{http_code}\n' https://example.com
+          echo "curl exit=$?"
+
+      - name: Does the privileged route drop back to the runner account
+        shell: bash
+        run: |
+          set +e
+          echo "--- sudo unshare --net -- runuser -u runner -- id"
+          sudo unshare --net -- runuser -u runner -- id
+          echo "exit=$?"
+          echo "--- and its capability sets, which decide whether this is"
+          echo "--- an unprivileged process or one that merely looks like it"
+          sudo unshare --net -- runuser -u runner -- \
+            grep -E '^Cap(Prm|Eff|Bnd|Amb)' /proc/self/status
+          echo "exit=$?"
+          echo "--- no-new-privs, which says whether it could climb back"
+          sudo unshare --net -- runuser -u runner -- \
+            grep -E '^NoNewPrivs' /proc/self/status
+          echo "exit=$?"
+
+      - name: Is the network actually gone inside it
+        shell: bash
+        run: |
+          set +e
+          echo "--- interfaces the suite would see"
+          sudo unshare --net -- runuser -u runner -- ip -o link show
+          echo "exit=$?"
+          echo "--- outbound fetch"
+          sudo unshare --net -- runuser -u runner -- \
+            curl -sS -m 10 -o /dev/null -w 'http_code=%{http_code}\n' https://example.com
+          echo "curl-in-namespace exit=$?"
+          echo "--- name resolution"
+          sudo unshare --net -- runuser -u runner -- getent hosts example.com
+          echo "getent-in-namespace exit=$?"
+          echo "--- loopback only, which some suites need up"
+          sudo unshare --net -- sh -c 'ip link set lo up; runuser -u runner -- ip -o link show lo'
+          echo "exit=$?"
+
+      - name: Is the toolchain still reachable after two privilege changes
+        shell: bash
+        run: |
+          set +e
+          echo "--- PATH as runuser leaves it"
+          sudo unshare --net -- runuser -u runner -- sh -c 'echo "PATH=$PATH"; command -v cargo'
+          echo "exit=$?"
+          echo "--- with the login environment preserved instead"
+          sudo unshare --net -- sudo -u runner --preserve-env=PATH,HOME,CARGO_HOME,RUSTUP_HOME -- \
+            sh -c 'echo "PATH=$PATH"; command -v cargo && cargo --version'
+          echo "exit=$?"
+          echo "--- and whether an offline cargo command runs at all in there"
+          sudo unshare --net -- sudo -u runner --preserve-env=PATH,HOME,CARGO_HOME,RUSTUP_HOME -- \
+            sh -c 'cd "$HOME" && cargo --version'
+          echo "exit=$?"
