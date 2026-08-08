@@ -98,11 +98,17 @@ jobs:
 
       - name: Run the default suite
         # No --workspace: this is the default set, which is what a contributor
-        # runs and what the scaling harness is deliberately outside of. The
-        # runner account is unprivileged and no step grants it anything, which
-        # is one half of what the headless conformance check in #20 verifies
-        # rather than assumes. Warnings are not errors here, so a failing test
-        # reds this check and a warning does not.
+        # runs and what the scaling harness is deliberately outside of.
+        # Warnings are not errors here, so a failing test reds this check and a
+        # warning does not.
+        #
+        # This step claims nothing about privilege, and an earlier version of
+        # this comment did. The account is not the same on both legs of the
+        # matrix, measured on the runner and recorded in #20: the Linux leg runs
+        # as an unprivileged account with an empty effective capability set, and
+        # the Windows leg runs as an administrator at high integrity. So the
+        # elevation condition of 0012 holds on one leg and does not hold on the
+        # other, and nothing here makes it hold. #20 is where that is answered.
         run: cargo test --locked --offline
 
   # Aggregates. Each one is red unless every leg of its matrix passed, including
