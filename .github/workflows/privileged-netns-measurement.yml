@@ -99,3 +99,24 @@ jobs:
           sudo unshare --net -- sudo -u runner --preserve-env=PATH,HOME,CARGO_HOME,RUSTUP_HOME -- \
             sh -c 'cd "$HOME" && cargo --version'
           echo "exit=$?"
+
+      - name: The spelling that survives both privilege changes
+        # The step above shows PATH and HOME are both reset on the way through,
+        # so the toolchain is unreachable and $HOME points at root's. Neither is
+        # fixed by asking sudo to preserve them. Setting them explicitly is the
+        # repair, and it is read here rather than left as the obvious next step,
+        # because the whole point of the two steps above is that the obvious
+        # next step was wrong twice already.
+        shell: bash
+        run: |
+          set +e
+          ISOLATED='sudo unshare --net -- runuser -u runner -- env HOME=/home/runner PATH=/home/runner/.cargo/bin:/usr/local/bin:/usr/bin:/bin'
+          echo "--- does the toolchain answer under it"
+          $ISOLATED cargo --version; echo "exit=$?"
+          $ISOLATED rustc --version; echo "exit=$?"
+          echo "--- is the network still gone under the same spelling"
+          $ISOLATED curl -sS -m 10 -o /dev/null -w 'http_code=%{http_code}\n' https://example.com
+          echo "curl exit=$?"
+          echo "--- is the process still unprivileged under the same spelling"
+          $ISOLATED sh -c 'echo "uid=$(id -u)"; grep -E "^CapEff" /proc/self/status'
+          echo "exit=$?"
