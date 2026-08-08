@@ -28,3 +28,15 @@ mod tests {
         std::hint::black_box(index + 1);
     }
 }
+
+/// A deliberate defect, held on this branch and never merged, so that the
+/// `Build` check can be shown refusing the thing it names. See #18.
+///
+/// The guard below is always true, because an index into a flat coefficient
+/// buffer is unsigned and cannot be below zero. It is the shape somebody writes
+/// after changing a signed offset to an index and carrying the old bound with
+/// it, and it reads as a range check while checking nothing. The gate compiles
+/// with warnings as errors, so this stops the build.
+pub fn index_is_in_range(index: usize) -> bool {
+    index >= 0
+}
