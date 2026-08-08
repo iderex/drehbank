@@ -7,7 +7,4 @@
 
 use std::process::ExitCode;
 
-fn main() -> ExitCode {
-    eprintln!("drehbank: no verbs yet. The command line is issue #60.");
-    ExitCode::FAILURE
-}
+fn main() -> ExitCode { eprintln!("drehbank: no verbs yet. The command line is issue #60."); ExitCode::FAILURE }
