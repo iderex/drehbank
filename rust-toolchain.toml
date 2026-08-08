@@ -1,0 +1,9 @@
+# The pinned toolchain. The string below is the one written in
+# docs/decisions/0001-language-and-toolchain.md, which is the authority for what
+# it is; raising the pin is its own issue and its own change, so that a compiler
+# upgrade never arrives inside a change about mathematics.
+[toolchain]
+channel = "1.97.0"
+# rustfmt and clippy are named here so the format and lint gate has them without
+# a second place to keep in step with this one.
+components = ["clippy", "rustfmt"]

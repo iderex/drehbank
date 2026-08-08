@@ -1,0 +1,41 @@
+[workspace]
+resolver = "3"
+members = [
+    "crates/drehbank-core",
+    "crates/drehbank-cli",
+    "crates/drehbank-scaling-harness",
+]
+# The scaling harness is a member, so `--workspace` compiles, formats and lints
+# it, and it is out of the default set, so a plain `cargo build` and a plain
+# `cargo test` never reach it. What it needs from a host, and how it announces a
+# skip, is issue #51.
+default-members = [
+    "crates/drehbank-core",
+    "crates/drehbank-cli",
+]
+
+[workspace.package]
+edition = "2024"
+rust-version = "1.97.0"
+# Nothing has been released, so nothing carries a release number yet. The
+# versioning policy is issue #64.
+version = "0.0.0"
+# No package here states a license, because the license of this repository is
+# the first open entry in issue #2 and no LICENSE file exists in the tree.
+# Publishing to a registry is an entry in the same issue, so nothing is
+# publishable until it is answered.
+publish = false
+
+# The throughput path.
+[profile.release]
+opt-level = 3
+# Off here and on in the test profile below. The two lines only make sense read
+# together, so both are written rather than left to a default.
+overflow-checks = false
+
+# The suite. Index arithmetic into flat buffers is one of the two ways this
+# package produces a plausible wrong number instead of a crash, and an arithmetic
+# overflow in an index is that way exactly. Both checks that catch it are on.
+[profile.test]
+debug-assertions = true
+overflow-checks = true

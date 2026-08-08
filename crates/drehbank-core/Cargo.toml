@@ -1,0 +1,12 @@
+[package]
+name = "drehbank-core"
+description = "Truncated series, Poisson brackets, Lie transforms, normal forms and remainder estimates."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+# None yet, and the first one is not free to choose: exact rational and
+# arbitrary-precision integer arithmetic is wanted here, and the license of the
+# crate that supplies it is an open entry in issue #2.
+[dependencies]

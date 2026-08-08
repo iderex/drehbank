@@ -1,0 +1,3 @@
+# Build output. Cargo.lock is deliberately not here: the lockfile is committed so
+# that a dependency change is visible in a diff rather than absorbed silently.
+/target

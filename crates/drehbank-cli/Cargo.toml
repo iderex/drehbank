@@ -1,0 +1,14 @@
+[package]
+name = "drehbank-cli"
+description = "The command line an operator runs."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "drehbank"
+path = "src/main.rs"
+
+[dependencies]
+drehbank-core = { path = "../drehbank-core" }
