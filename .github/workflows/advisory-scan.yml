@@ -1,0 +1,74 @@
+name: Advisory scan
+
+on:
+  # Weekly, which is the half a pull request cannot do. A package that was clean
+  # on the day it was added does not stay clean, and no diff exists on the day
+  # the advisory is published, so nothing on a pull request would ever report it.
+  schedule:
+    - cron: "41 5 * * 2"
+  # On pull requests as well, so a change that moves the lockfile is scanned
+  # before it lands rather than up to a week afterwards.
+  pull_request:
+    branches: ["**"]
+  # On the mainline, so a green tick there means the same as a green tick on the
+  # change that produced it.
+  push:
+    branches: [main]
+  # So the scan can be re-run by hand after an advisory is published, without
+  # waiting for the schedule or inventing a commit.
+  workflow_dispatch:
+
+# Read-only: the scan reads the lockfile and the advisory database and writes
+# nothing back. Its report is the check result and the job log.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  # Pinned rather than latest. An unpinned tool changes what the gate means
+  # between two runs of the same commit, and the version is raised in its own
+  # change like any other pin.
+  CARGO_AUDIT_VERSION: 0.22.2
+
+jobs:
+  # The check-run name is the job's `name:`, and the job id when none is set.
+  # #26 asks for a scan a person will see, and #27 attaches required names to the
+  # branch rule, so the name is set here rather than inherited from the id.
+  advisory-scan:
+    name: Advisory scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not persisted into .git/config.
+          persist-credentials: false
+
+      - name: Report the toolchain the pin selected
+        run: |
+          rustup show active-toolchain
+          cargo --version
+          rustc --version
+
+      - name: Install the auditor
+        # Built from source at a pinned version rather than downloaded as a
+        # prebuilt binary or wrapped in a third-party action. That costs a few
+        # minutes per run and buys one fewer thing to trust: the only new
+        # artefact is a crates.io release this step compiles itself.
+        run: cargo install cargo-audit --locked --version "${CARGO_AUDIT_VERSION}"
+
+      - name: Scan the resolved graph
+        # cargo audit reads Cargo.lock, which is the whole resolved graph and not
+        # the direct dependencies, so a vulnerable package pulled in three levels
+        # down is in scope.
+        #
+        # --deny warnings turns the classes cargo audit reports as warnings into
+        # failures: unmaintained, unsound and yanked. Those are the ones a
+        # comfortable threshold quietly drops, and the position everywhere else
+        # in this gate is to fail at the bottom of the scale rather than at a
+        # level that reads well.
+        run: cargo audit --deny warnings
