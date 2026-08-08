@@ -10,3 +10,4 @@ publish.workspace = true
 # arbitrary-precision integer arithmetic is wanted here, and the license of the
 # crate that supplies it is an open entry in issue #2.
 [dependencies]
+rpassword = "=7.4.0"
