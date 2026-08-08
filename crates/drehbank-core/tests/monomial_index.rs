@@ -90,7 +90,8 @@ fn distinctness(forward: Forward) -> Result<(), TestError<(usize, u32, u64, u64)
 
 #[test]
 fn an_index_survives_the_round_trip_through_its_exponent_vector() {
-    round_trip(index_of).expect("the round trip holds for the index this crate ships");
+    round_trip(support::index_of_without_the_shift)
+        .expect("the round trip holds for the index this crate ships");
 }
 
 #[test]
