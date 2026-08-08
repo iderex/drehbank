@@ -78,6 +78,52 @@ Both commands in this section are strings
 same rule as above: where this file and that workflow differ, the workflow is
 right and this file is the defect.
 
+## The suite, the seed and the fixtures
+
+`cargo test --locked --offline` is the whole suite and it prints how many tests
+it ran. Read that number. A suite that silently ran nothing and a suite that ran
+everything and found nothing both exit zero, and the count is what separates
+them.
+
+Tests of one function live beside it in a `mod tests` block. Properties, and
+anything that reads a fixture, live in `crates/drehbank-core/tests/`, because
+they go through the public API and a test that reaches into a private helper
+stops proving the thing a caller gets.
+
+Properties run from a seed that is a constant in the repository, `SEED` in
+`crates/drehbank-core/tests/support/mod.rs`, never from the clock. A failure
+found on your machine has to reproduce on somebody else's, and a run seeded from
+the clock gives a counterexample nobody can get back. Changing that constant is
+a deliberate edit and it belongs in its own change, because it moves every
+property in the tree at once.
+
+Persistence of counterexamples to a file is off. When a property fails, take the
+case it shrank to into `crates/drehbank-core/tests/fixtures/monomial-index/` as
+a new `.txt` file, named for what went wrong rather than for the day it was
+found. The format is the one the files there already use:
+
+    # what this case is, and what found it
+    variables: 3
+    degree: 1
+
+    index: 0
+    exponents: 0 0 1
+
+Comment lines and blank lines are ignored, an `index` line is followed by its
+`exponents` line, and a file may hold as many pairs as the case needs. The
+loader refuses a file it cannot read rather than skipping it, and the test over
+that directory refuses an empty one, so neither a broken fixture nor a missing
+one turns into a green run over nothing.
+
+Take the case even when you fix the defect in the same change. The property that
+found it will not find it again once the property's seed or its ranges move, and
+the fixture is what keeps testing it after that.
+
+A guard needs a proof that it bites. For a property, that proof is the property
+refusing an implementation that is wrong on purpose, held in the tree next to
+it, rather than a sentence saying it would.
+`index_of_without_the_shift` in `tests/support/mod.rs` is the worked example.
+
 ## Sign your work
 
 Every commit carries a `Signed-off-by` line matching its author, which is the
