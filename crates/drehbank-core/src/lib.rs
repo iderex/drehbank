@@ -12,6 +12,19 @@
 
 pub mod monomial;
 
+/// The total degree of a monomial, from its exponent vector.
+///
+/// Written as an index loop, which is the shape this kind of code arrives in
+/// before somebody reaches for the iterator, and which reads the wrong element
+/// the day the bound and the subscript stop agreeing.
+pub fn total_degree(exponents: &[usize]) -> usize {
+    let mut total = 0;
+    for i in 0..exponents.len() {
+        total += exponents[i];
+    }
+    total
+}
+
 #[cfg(test)]
 mod tests {
     /// The `[profile.test]` block in the workspace manifest turns overflow
