@@ -1,0 +1,127 @@
+# A measurement, not a gate.
+#
+# Issue #20 has to decide how the default suite is invoked so that it runs with
+# no outbound network and with no added privilege at the same time. Those two
+# pull against each other. Taking the network away from a process needs either a
+# privileged setup step, which spends the privilege condition to buy the network
+# one, or a user namespace that an unprivileged account is allowed to create,
+# which spends nothing. Whether this runner image allows the second is a fact
+# about the image rather than about this repository, and a check written against
+# an assumption about the host is a check that passes for a reason nobody stated.
+#
+# So it is read here before anything is written against it. Nothing in this file
+# refuses anything and no step fails the job, because a red line here would say
+# the measurement did not run, which is a different statement from the
+# capability being absent, and telling those two apart is the whole purpose.
+#
+# This file is not meant to reach the default branch. It runs once on its own
+# pull request, its log is quoted into #20, and it is closed.
+name: Headless isolation measurement
+
+on:
+  pull_request:
+    branches: ["**"]
+
+# Read-only, and no checkout step at all: every fact below is a property of the
+# runner, so nothing in this workflow reads the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Isolation available on ubuntu-latest
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Who the suite would run as
+        shell: bash
+        run: |
+          set +e
+          echo "whoami: $(whoami)"
+          echo "id: $(id)"
+          echo "--- capability sets of this shell"
+          grep -E '^Cap(Inh|Prm|Eff|Bnd|Amb)' /proc/self/status
+          echo "--- is passwordless sudo on offer"
+          sudo -n true; echo "sudo -n true exit=$?"
+
+      - name: Whether an unprivileged user namespace can be created
+        shell: bash
+        run: |
+          set +e
+          unshare --version
+          echo "--- the sysctls that gate this, where they exist on this image"
+          for s in kernel.unprivileged_userns_clone \
+                   kernel.apparmor_restrict_unprivileged_userns \
+                   user.max_user_namespaces; do
+            printf '%s = ' "$s"; sysctl -n "$s" 2>&1
+          done
+          echo "--- unshare --user --map-current-user --net"
+          unshare --user --map-current-user --net true; echo "exit=$?"
+          echo "--- unshare --user --map-root-user --net"
+          unshare --user --map-root-user --net true; echo "exit=$?"
+
+      - name: Whether that namespace actually removes outbound network
+        shell: bash
+        run: |
+          set +e
+          echo "--- baseline, outside any namespace, so a failure below is the"
+          echo "--- namespace rather than a runner with no route in the first place"
+          curl -sS -m 10 -o /dev/null -w 'http_code=%{http_code}\n' https://example.com
+          echo "curl exit=$?"
+          echo "--- the same fetch inside the namespace"
+          unshare --user --map-current-user --net -- \
+            curl -sS -m 10 -o /dev/null -w 'http_code=%{http_code}\n' https://example.com
+          echo "curl-in-namespace exit=$?"
+          echo "--- name resolution inside the same namespace"
+          unshare --user --map-current-user --net -- getent hosts example.com
+          echo "getent-in-namespace exit=$?"
+
+      - name: Whether the namespaced process is still unprivileged
+        shell: bash
+        run: |
+          set +e
+          echo "--- the ids the suite would run under inside the namespace"
+          unshare --user --map-current-user --net -- id; echo "id exit=$?"
+          echo "--- and its capability sets, which are bounded by the namespace"
+          echo "--- rather than by the host, so this is read and not assumed"
+          unshare --user --map-current-user --net -- \
+            grep -E '^Cap(Prm|Eff|Bnd)' /proc/self/status
+          echo "exit=$?"
+
+  windows:
+    name: Isolation available on windows-latest
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      # The suite runs on both platforms in the matrix the build and test gate
+      # declares, so whatever #20 requires has to hold on both. There is no
+      # unshare here, and this step is what says what there is instead.
+      - name: Who the suite would run as, and whether it is elevated
+        shell: pwsh
+        run: |
+          whoami
+          $id = [Security.Principal.WindowsIdentity]::GetCurrent()
+          $principal = New-Object Security.Principal.WindowsPrincipal($id)
+          "IsInRole(Administrator) = " + $principal.IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
+          "Token integrity level:"
+          whoami /groups | Select-String -Pattern 'Mandatory Label'
+
+      - name: What outbound network looks like from here
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Continue'
+          try {
+            $r = Invoke-WebRequest -Uri 'https://example.com' -TimeoutSec 10 `
+                   -UseBasicParsing
+            "baseline status = " + $r.StatusCode
+          } catch {
+            "baseline threw: " + $_.Exception.Message
+          }
+          "There is no unshare on this platform. What a per-process network"
+          "namespace would cost here is what #20 has to answer, and this step"
+          "records only that the baseline has a route."
