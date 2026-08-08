@@ -122,23 +122,40 @@ where you keep the file is where the date lives.
 
 ## What is checked and what is stated
 
-**None of this is enforced by a machine today, and the check that would enforce
-part of it has not been built.**
+**One line of the inventory above is now refused by a machine. The rest are
+still claims in prose.**
 
-The check is a refusal over the whole dependency graph of the core library: no
-package reachable from the core, at any depth, may be capable of opening a
-socket. That is issue #25 and it does not exist yet. Until it lands, the first
-line of the inventory above is a claim in prose, and the honest reading is that
-nothing in this repository refuses a network-capable dependency arriving
-tomorrow.
+The refused one is the first. `No network capability` reads the resolved graph
+of the core library and of the command line, along the edges a caller links, and
+refuses a package on either of two named lists: transports, clients, resolvers
+and TLS crates by package name, and system libraries by the `links` key a `-sys`
+wrapper declares. When it refuses, it prints the package and the chain of
+dependencies that reached it. It lives in
+`crates/drehbank-core/tests/no_network_capability.rs`, where both lists are
+written out with the reason each entry is on them, and
+`.github/workflows/no-network-capability.yml` is what runs it in the gate.
 
-The other lines are claims in the same sense. Reading only the files you name,
-recording no machine identity and quoting only your own paths are properties of
-the code, checked by the suite that tests the code, and there is no code yet.
+**IT IS A FLOOR OVER A NAMED LIST AND IT IS NOT A PROOF.** It refuses what is on
+those two lists. A package that opens a socket through a route nobody has listed
+passes it, and so does one that shells out to a program that opens the socket
+for it. The lists hold what has actually been seen arriving in Rust dependency
+graphs; they do not hold what nobody has written yet, and nothing here notices
+the difference. So the first line of the inventory is now a claim with a
+refusal behind part of it, rather than a proven property.
 
-This section states the gap rather than covering it. It is not rewritten into an
-assurance when the check lands; it is rewritten to say what the check refuses and
-what it still does not reach.
+Two more things it does not reach. The scaling harness is outside it on purpose,
+because how a result gets off a measurement machine is open in issue #51 and a
+refusal written before that answer would be refusing a decision rather than a
+capability. And a dev-dependency is outside it too, because the suite compiles
+code an operator never installs.
+
+The other lines of the inventory are claims in the sense the first one was
+before this landed. Reading only the files you name, recording no machine
+identity and quoting only your own paths are properties of the code, checked by
+the suite that tests the code, and that code does not exist yet.
+
+This section states the gap rather than covering it, and what it now says about
+the first line is what a machine refuses rather than what anyone hopes.
 
 ## If a later version can share results
 

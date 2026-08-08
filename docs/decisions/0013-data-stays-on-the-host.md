@@ -115,11 +115,20 @@ A future dependency that pulls in a network stack fails the check, and the
 failure is the point, because it is what makes anyone notice a capability
 arriving that nobody asked for.
 
-That check is built in issue #25 and is not built here. This document is the
-decision and the reasons; issue #25 owes the mechanism, and the transitive scope
-and the failure behaviour are settled there. Until it lands, this rule is a rule
-in prose, and the honest reading of the paragraph above is that nothing in the
-tree refuses a network-capable dependency today.
+That check was built in issue #25 and not here. This document is the decision
+and the reasons; the transitive scope and the failure behaviour were settled
+there. `No network capability` refuses a package on either of two named lists
+anywhere in the graph of the core library or of the command line, and prints the
+chain that reached it. The lists and the reason for each entry are in
+`crates/drehbank-core/tests/no_network_capability.rs`.
+
+The paragraph above is written as a construction, and the check is a floor under
+part of it rather than a proof of it. A package reaching a socket through a
+route nobody has listed passes, the scaling harness is outside the check because
+issue #51 has not settled how a result leaves a measurement machine, and a
+dev-dependency is outside it because nothing an operator installs carries one.
+`docs/what-leaves-the-host.md` states the same limits in the same words and is
+where a reader who is not reading decisions will find them.
 
 ## Federation, if it is ever wanted
 
