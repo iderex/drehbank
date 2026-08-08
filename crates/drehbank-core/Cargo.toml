@@ -15,3 +15,15 @@ publish.workspace = true
 # gate by keeping its own.
 [lints]
 workspace = true
+
+# Tests only. This is a dev-dependency, so nothing here is compiled into the
+# library or the binary a caller links, and nothing here reaches a coefficient.
+# The entry that argues it is in docs/dependencies.md.
+#
+# `default-features = false` with `std` back on is the whole graph question:
+# the default set adds process forking, a timeout thread and a temporary file
+# crate for persisting counterexamples, none of which this suite uses, and it
+# costs fourteen more packages. Measured rather than supposed, with the command
+# on the dependency page.
+[dev-dependencies]
+proptest = { version = "1.11.0", default-features = false, features = ["std"] }

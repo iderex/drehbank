@@ -1,0 +1,19 @@
+# The smallest pair the rank has to keep apart.
+#
+# Found by running the distinctness property against the bijection with the
+# shift dropped, in tests/support/mod.rs. Without the shift both of the
+# monomials below rank to 0, so one coefficient is read for the other and the
+# series is wrong by an amount that looks like an answer.
+#
+# Three variables is the smallest width where the shift is visible at all: the
+# k = 1 term carries a shift of zero, so a two variable case cannot tell the two
+# implementations apart, and a suite that only went that far would have passed.
+
+variables: 3
+degree: 1
+
+index: 0
+exponents: 0 0 1
+
+index: 1
+exponents: 0 1 0

@@ -6,29 +6,82 @@ Adding one is a change to this page as well as to a manifest.
 
 ## The list
 
-There are none. Every crate in the workspace declares either nothing or a path
-edge onto another crate in the same workspace:
+One, and it is on the test edge rather than on the shipped one. What a caller
+links is still the workspace and nothing else:
 
-    $ grep -n -A3 '^\[dependencies\]' crates/*/Cargo.toml
-    crates/drehbank-cli/Cargo.toml:13:[dependencies]
-    crates/drehbank-cli/Cargo.toml-14-drehbank-core = { path = "../drehbank-core" }
-    crates/drehbank-core/Cargo.toml:12:[dependencies]
-    crates/drehbank-scaling-harness/Cargo.toml:15:[dependencies]
+    $ cargo tree --workspace --locked --offline --edges normal --prefix none \
+        | sed 's/ (.*//' | sort -u
+    drehbank-cli v0.0.0
+    drehbank-core v0.0.0
+    drehbank-scaling-harness v0.0.0
+
+    $ cargo tree --package drehbank-core --locked --offline --edges dev \
+        --depth 1 --prefix none | sed 's/ (.*//' | sort -u
+    drehbank-core v0.0.0
+    proptest v1.11.0
+
+The `sed` drops the checkout path each line ends with, which is a fact about
+whoever ran it rather than about the tree.
+
+### proptest 1.11.0, dev-dependency of drehbank-core
+
+**What it is for.** Generating cases for the properties in
+`crates/drehbank-core/tests/`, and shrinking a failure down to the smallest case
+that still fails. Issue #19 asks for a property harness with a fixed seed
+policy, and the shrinking is the half that is worth a dependency: a property
+that fails at six variables and degree eight hands back a monomial nobody can
+reason about, and the same failure shrunk to three variables and degree one is
+the two-line fixture in `tests/fixtures/monomial-index/`.
+
+**What removing it would cost.** The generators are a few dozen lines and the
+tree already carries a hand-rolled xorshift in a test, so that half is cheap.
+The shrinker is not: shrinking a compound value while keeping it inside the
+strategy that produced it is the part that gets written wrong quietly, and a
+shrinker that reports a case that does not actually fail is worse than none.
+Call it the generators plus a correct integrated shrinker, and the shrinker is
+the reason the answer here is a dependency.
+
+**Its license, read from the crate's own metadata.** `MIT OR Apache-2.0`, from
+the resolved graph rather than from memory:
 
     $ cargo metadata --format-version 1 --locked --offline \
-        | tr ',' '\n' | grep -o '"name":"[^"]*"' | sort -u
-    "name":"drehbank"
-    "name":"drehbank_core"
-    "name":"drehbank-cli"
-    "name":"drehbank-core"
-    "name":"drehbank-scaling-harness"
+        | tr '{' '\n' | grep '"name":"proptest"' | grep -o '"license":"[^"]*"'
+    "license":"MIT OR Apache-2.0"
 
-Five strings, three packages and two target names, and nothing from outside. So
-the resolved graph is the workspace, and the count above is a fact about this
-tree at the commit it was run on rather than a target anyone is holding to.
+Every package it pulls in offers a permissive option too. One of them,
+`r-efi`, offers `LGPL-2.1-or-later` as a third alternative, which is a choice
+this repository does not have to take. That is a reading of the metadata and not
+a legal opinion, and the license of this repository itself is still the first
+open entry in issue #2.
 
-That is not a boast and it does not stay true. The first one this package wants
-is named below.
+**Whether it reaches the numbers.** No. It is a dev-dependency, so it is absent
+from the first command above, and no coefficient passes through it. It does
+reach the apparatus that judges the coefficients, which is a smaller risk and
+not a zero one: a generator that quietly never produces a case is a suite that
+passes over nothing, which is why
+`every_regression_case_in_the_fixture_directory_holds` refuses an empty fixture
+directory rather than passing over it.
+
+### What it cost the graph
+
+Thirteen packages on this host, twenty-three in the lockfile across every
+platform it resolves for. The lockfile is the larger number because it carries
+the platform-gated ones, `libc`, `r-efi`, `wasip2` and `wit-bindgen` among them,
+which are in the file and are not built here.
+
+    $ cargo tree --package drehbank-core --locked --offline --edges normal,dev \
+        --prefix none | sed 's/ (.*//' | sort -u | grep -cv '^drehbank-core'
+    13
+
+`default-features = false` with `std` put back is what keeps it to that. The
+default feature set adds process forking, a timeout thread and a temporary file
+crate for persisting counterexamples, none of which this suite uses. Measured
+by resolving both ways at the same commit: thirty-seven external packages with
+the defaults, twenty-three without them.
+
+That is the largest single move this graph has made, from nothing to twenty-three
+in one change, and it is stated as the cost rather than folded into the entry
+above.
 
 ## The position
 
