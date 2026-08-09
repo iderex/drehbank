@@ -6,8 +6,9 @@
 //!
 //! The monomial index of issue #28 is in [`monomial`], the coefficient
 //! abstraction of `docs/decisions/0002-coefficients.md` is in [`coefficient`],
-//! and the truncated series of issue #29 is in [`series`]. The bracket, the Lie
-//! transforms, the resonance handling and the estimates are still to come.
+//! the truncated series of issue #29 is in [`series`], and the resonance
+//! lattice of issue #39 is in [`resonance`]. The bracket, the Lie transforms and
+//! the estimates are still to come.
 //!
 //! Nothing in this crate may depend on the command line, so that the boundary
 //! the dependency check applies to is the one the workspace declares.
@@ -15,10 +16,12 @@
 pub mod coefficient;
 pub mod error;
 pub mod monomial;
+pub mod resonance;
 pub mod series;
 
 pub use coefficient::Coefficient;
 pub use error::Error;
+pub use resonance::ResonanceModule;
 pub use series::Series;
 
 #[cfg(test)]

@@ -91,6 +91,57 @@ pub enum Error {
         dimension: u64,
     },
 
+    /// A declared resonance relation of the wrong width.
+    ///
+    /// Its position in the declaration is carried, because a caller who wrote
+    /// six relations needs to be told which of them is in the wrong phase
+    /// space rather than that one of them is.
+    RelationWidth {
+        /// The degrees of freedom the module was asked for.
+        freedoms: usize,
+        /// How many entries the relation carried.
+        given: usize,
+        /// Its position in the declaration, counting from zero.
+        at: usize,
+    },
+
+    /// A resonance declaration whose saturation is the whole lattice.
+    ///
+    /// Such a module makes every term resonant, so the normal form is the
+    /// input unchanged. That is a request that has answered itself rather than
+    /// work the package can do, and the rank is carried so a caller can see how
+    /// many independent relations they actually declared.
+    EveryTermResonant {
+        /// The degrees of freedom the module was asked for.
+        freedoms: usize,
+        /// The rank of the saturation, which equals the degrees of freedom.
+        rank: usize,
+    },
+
+    /// A membership query of the wrong width.
+    MultiIndexWidth {
+        /// The degrees of freedom the module lives in.
+        freedoms: usize,
+        /// How many entries the query carried.
+        given: usize,
+    },
+
+    /// An exponent vector of the wrong width.
+    ExponentWidth {
+        /// The number of variables, which is twice the degrees of freedom.
+        variables: usize,
+        /// How many entries the exponent vector carried.
+        given: usize,
+    },
+
+    /// The integer lattice arithmetic left the width it is computed in.
+    ///
+    /// The Hermite normal form of a declaration can grow entries well beyond
+    /// the ones the caller wrote. Nothing here wraps: an entry that no longer
+    /// fits is refused, because a wrapped entry gives a basis that is a
+    /// perfectly ordinary looking lattice and the wrong one.
+    LatticeOverflow,
+
     /// An evaluation point of the wrong width.
     ///
     /// A point has one entry per variable, which is twice the degrees of
@@ -141,6 +192,30 @@ impl fmt::Display for Error {
                 "degree {degree} in {variables} variable(s) holds {dimension} \
                  coefficient(s), which is more than a pointer on this machine \
                  can index"
+            ),
+            Error::RelationWidth {
+                freedoms,
+                given,
+                at,
+            } => write!(
+                formatter,
+                "relation {at} of the declaration carries {given} entry(s) in a                  module of {freedoms} degree(s) of freedom"
+            ),
+            Error::EveryTermResonant { freedoms, rank } => write!(
+                formatter,
+                "this declaration saturates to rank {rank} in {freedoms} degree(s)                  of freedom, which makes every term resonant and leaves the normal                  form equal to the input"
+            ),
+            Error::MultiIndexWidth { freedoms, given } => write!(
+                formatter,
+                "a multi-index of {given} entry(s) was given for a module of                  {freedoms} degree(s) of freedom"
+            ),
+            Error::ExponentWidth { variables, given } => write!(
+                formatter,
+                "an exponent vector of {given} entry(s) was given for {variables}                  variable(s)"
+            ),
+            Error::LatticeOverflow => write!(
+                formatter,
+                "the integer lattice arithmetic left the width it is computed in,                  and it is refused rather than wrapped"
             ),
             Error::PointWidth { variables, given } => write!(
                 formatter,

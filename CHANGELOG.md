@@ -47,8 +47,17 @@ None. The series arithmetic and the evaluation of a series at a point are the
 first numbers the package produces, so they are new rather than moved and there
 is no input whose answer a caller could have pinned. #29
 
+The resonance lattice answers a membership question and a count of retained
+terms rather than producing a coefficient, so nothing there moved either. #39
+
 ### Added
 
+- The resonance module as a lattice. A declaration of integer relations is
+  replaced by the canonical basis of the lattice they generate, which includes
+  the relations the declaration only implies, so two ways of writing one
+  resonance name one module. Membership is decided in integer arithmetic with no
+  tolerance anywhere, and the number of terms the normal form retains at each
+  degree is available before a run is started. #39
 - The truncated series, its arithmetic and the coefficient abstraction it is
   written over. A series carries its degrees of freedom and its truncation
   order, so two series that disagree about either are refused rather than
