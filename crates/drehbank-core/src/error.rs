@@ -185,6 +185,54 @@ pub enum Error {
         /// The exponent that could not become a coefficient.
         exponent: u32,
     },
+
+    /// A frequency vector carrying an entry that is not a finite number.
+    ///
+    /// The relative divisor of 0006 is a ratio of sums of the entries, so an
+    /// infinity or a not-a-number in one of them makes every divisor in the
+    /// detection unreadable rather than large. Its position is carried, because
+    /// a caller who supplied six frequencies needs to be told which one.
+    FrequencyNotFinite {
+        /// Its position in the vector, counting from zero.
+        at: usize,
+    },
+
+    /// A frequency vector whose largest entry is zero.
+    ///
+    /// 0007 refuses this before anything else, because the relative divisor of
+    /// 0006 divides by the largest entry and is not defined on such a vector.
+    /// It is a degenerate system rather than a small one: every divisor is zero
+    /// and every multi-index is exactly resonant.
+    FrequenciesDegenerate {
+        /// The degrees of freedom the vector was given for.
+        freedoms: usize,
+    },
+
+    /// A detection tolerance outside the range a relative divisor lives in.
+    ///
+    /// The tolerance of 0007 is compared against the relative divisor of 0006,
+    /// which lies between zero and one, so a negative one refuses everything
+    /// and a not-a-number one refuses everything silently. Both are a caller
+    /// meaning something else.
+    ///
+    /// The value is not carried. [`Error`] is [`Eq`], binary64 is not, and one
+    /// message is not worth changing what the public error type implements.
+    ToleranceNotInRange,
+
+    /// A detection whose search would enumerate more multi-indices than the
+    /// ceiling allows.
+    ///
+    /// The count is the closed form 0007 gives for the integer points of an
+    /// `L1` ball, halved because `k` and `-k` are one relation. It is refused
+    /// before anything is allocated, because the alternative to a refusal is an
+    /// allocation the host cannot serve, and 0011 does not allow the library to
+    /// end the process.
+    DetectionTooLarge {
+        /// How many multi-indices the search would visit.
+        candidates: u64,
+        /// The largest number it will visit.
+        ceiling: u64,
+    },
 }
 
 impl fmt::Display for Error {
@@ -270,6 +318,31 @@ impl fmt::Display for Error {
                 "differentiating brings down the exponent {exponent}, which is \
                  outside the integers a coefficient can be built from"
             ),
+            Error::FrequencyNotFinite { at } => write!(
+                formatter,
+                "frequency {at} is not a finite number, and every divisor \
+                 computed from it would be unreadable rather than large"
+            ),
+            Error::FrequenciesDegenerate { freedoms } => write!(
+                formatter,
+                "every one of these {freedoms} frequency(s) is zero, so the \
+                 relative divisor is not defined and every multi-index is \
+                 exactly resonant"
+            ),
+            Error::ToleranceNotInRange => write!(
+                formatter,
+                "a detection tolerance is compared against a relative divisor, \
+                 which lies between zero and one, and this one is negative or \
+                 is not a number"
+            ),
+            Error::DetectionTooLarge {
+                candidates,
+                ceiling,
+            } => write!(
+                formatter,
+                "this detection would visit {candidates} multi-index(s), and \
+                 the search stops at {ceiling}; lower the order bound"
+            ),
         }
     }
 }
@@ -327,6 +400,13 @@ const EVERY_VARIANT: &[Error] = &[
         given: 4,
     },
     Error::MultiplierBeyondCoefficient { exponent: u32::MAX },
+    Error::FrequencyNotFinite { at: 2 },
+    Error::FrequenciesDegenerate { freedoms: 3 },
+    Error::ToleranceNotInRange,
+    Error::DetectionTooLarge {
+        candidates: 67122,
+        ceiling: 1_000_000,
+    },
 ];
 
 impl From<IndexError> for Error {
@@ -380,7 +460,7 @@ mod tests {
     fn the_list_the_guard_walks_holds_every_variant() {
         assert_eq!(
             EVERY_VARIANT.len(),
-            15,
+            19,
             "a variant was added or removed; add it to EVERY_VARIANT and move this count"
         );
     }

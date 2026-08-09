@@ -7,7 +7,8 @@
 //! The monomial index of issue #28 is in [`monomial`], the coefficient
 //! abstraction of `docs/decisions/0002-coefficients.md` is in [`coefficient`],
 //! the truncated series of issue #29 is in [`series`], and the resonance
-//! lattice of issue #39 is in [`resonance`]. The partial derivative and the
+//! lattice of issue #39 is in [`resonance`], with the advisory detection of
+//! issue #40 beside it. The partial derivative and the
 //! Poisson bracket of issue #30 are in [`series`] too, beside the arithmetic
 //! they are built from. The Lie transforms and the estimates are still to come.
 //!
@@ -22,7 +23,7 @@ pub mod series;
 
 pub use coefficient::Coefficient;
 pub use error::Error;
-pub use resonance::ResonanceModule;
+pub use resonance::{NearResonance, Proposal, Provenance, ResonanceModule};
 pub use series::Series;
 
 #[cfg(test)]

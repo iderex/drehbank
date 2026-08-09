@@ -11,6 +11,7 @@
 #![allow(dead_code)]
 
 pub mod bracket_fixture;
+pub mod detection_fixture;
 pub mod exact;
 pub mod gaussian;
 pub mod lattice_fixture;
