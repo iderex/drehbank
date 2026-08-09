@@ -3,6 +3,15 @@
 //!
 //! This is not a test target of its own. It is a module the files next to it
 //! declare with `mod support;`.
+//!
+//! Each of those files compiles its own copy, so an item this file offers is
+//! unused in every test binary that does not want it. That is what the allow
+//! below is for, and it is the only reason: dead code here is a statement about
+//! one binary rather than about the tree.
+#![allow(dead_code)]
+
+pub mod exact;
+pub mod series_fixture;
 
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -30,8 +39,18 @@ pub const CASES: u32 = 4096;
 /// the fixture directory below, by hand, with a name and a reason, which is
 /// what makes it a case somebody can read a year later.
 pub fn fixed_seed_runner() -> TestRunner {
+    fixed_seed_runner_with(CASES)
+}
+
+/// The same runner at a stated number of cases.
+///
+/// [`CASES`] is sized for a property whose case is one index computation. A
+/// property whose case is a convolution over two graded arrays costs several
+/// thousand of those, so it runs fewer of them and says how many rather than
+/// taking the number for a property it is not.
+pub fn fixed_seed_runner_with(cases: u32) -> TestRunner {
     let config = Config {
-        cases: CASES,
+        cases,
         failure_persistence: None,
         ..Config::default()
     };
