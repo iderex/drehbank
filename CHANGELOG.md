@@ -43,6 +43,10 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. The supply chain triage reads what an audit reported about the repository
+and writes down what was accepted. It compiles nothing and no coefficient the
+package returns passes through it. #59
+
 None. Near resonance detection reports divisors of a frequency vector rather
 than computing a coefficient, and no path in the package consults it, so nothing
 a caller could have pinned moves. Accepting a proposal produces the same
@@ -66,6 +70,12 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- `docs/supply-chain-acceptances.md`, which holds the triage of the supply chain
+  self audit. Every check that audit reported on one named commit is answered
+  there, either by the change that fixes it or by an acceptance carrying its
+  reason and what would end it. The page also says where the audit runs and
+  where its findings are published, with the commands that show both. #59
 
 - Near resonance detection, which is advisory and applies nothing. Given a
   frequency vector, a tolerance on the relative divisor and a bound on the order
