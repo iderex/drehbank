@@ -43,10 +43,17 @@ relying on those entries existing.
 
 ### Numerical results
 
-None. Nothing in the package computes a number a user can ask for yet.
+None. The series arithmetic and the evaluation of a series at a point are the
+first numbers the package produces, so they are new rather than moved and there
+is no input whose answer a caller could have pinned. #29
 
 ### Added
 
+- The truncated series, its arithmetic and the coefficient abstraction it is
+  written over. A series carries its degrees of freedom and its truncation
+  order, so two series that disagree about either are refused rather than
+  combined. Addition, subtraction, scaling, negation, the graded product,
+  truncation to a lower order and evaluation at a point. #29
 - The versioning policy, this changelog and the release checklist. #64
 
 ### Changed
