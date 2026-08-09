@@ -171,6 +171,14 @@ Where it adds a dependency, an entry in `docs/dependencies.md`. That page holds
 the position on how large the graph should be and the four things every entry has
 to answer, and a dependency arriving without one is a dependency nobody argued.
 
+Where a user could notice it, a line in `CHANGELOG.md`, written in the same
+change rather than left for release time. Its numerical results section is
+filled in even when nothing moved, because `None.` written after somebody looked
+and a section that is not there are different statements. A change that makes
+the package compute a different number for the same input goes in that section,
+names the case and the size of the move, and carries the command that shows it.
+`docs/versioning.md` is where that rule and the rest of the policy are written.
+
 Where it changes what a user sees, which of the three documents that touches.
 
 ## The breaking change rule

@@ -40,6 +40,11 @@ Answer each one. "No" is an answer; leaving it out is not.
   all? A code change can make that page wrong without touching it.
 - Does it add a dependency? Name it, say why it is there and what would have to
   be written by hand to remove it.
+- Does it need a line in `CHANGELOG.md`? Anything a user could notice does, and
+  a change that moves a number goes in the numerical results section with the
+  case, the size of the move and the command that shows it.
+  `docs/release-checklist.md` is what reads those lines before a tag, and
+  `docs/versioning.md` is what decides the number the release then carries.
 
 ## What this does not do
 
