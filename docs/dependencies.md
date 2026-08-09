@@ -23,6 +23,16 @@ links is still the workspace and nothing else:
 The `sed` drops the checkout path each line ends with, which is a fact about
 whoever ran it rather than about the tree.
 
+Two of those three names are also edges rather than only roots. The command line
+and the scaling harness each depend on `drehbank-core`, which is this workspace's
+own crate and adds nothing to the graph a caller resolves, which is why the
+output above is the same set either way. The scaling harness also carries a build
+script, which runs `rustc --version` at build time so that a recorded measurement
+can name the compiler that produced the binary. A build script is code rather
+than a package, so it is not a dependency and it is named here anyway, because
+somebody auditing what runs during a build should not have to find it by reading
+manifests.
+
 ### proptest 1.11.0, dev-dependency of drehbank-core
 
 **What it is for.** Generating cases for the properties in
