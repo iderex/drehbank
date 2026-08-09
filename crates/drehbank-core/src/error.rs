@@ -199,23 +199,29 @@ impl fmt::Display for Error {
                 at,
             } => write!(
                 formatter,
-                "relation {at} of the declaration carries {given} entry(s) in a                  module of {freedoms} degree(s) of freedom"
+                "relation {at} of the declaration carries {given} entry(s) \
+                 in a module of {freedoms} degree(s) of freedom"
             ),
             Error::EveryTermResonant { freedoms, rank } => write!(
                 formatter,
-                "this declaration saturates to rank {rank} in {freedoms} degree(s)                  of freedom, which makes every term resonant and leaves the normal                  form equal to the input"
+                "this declaration saturates to rank {rank} in {freedoms} \
+                 degree(s) of freedom, which makes every term resonant and \
+                 leaves the normal form equal to the input"
             ),
             Error::MultiIndexWidth { freedoms, given } => write!(
                 formatter,
-                "a multi-index of {given} entry(s) was given for a module of                  {freedoms} degree(s) of freedom"
+                "a multi-index of {given} entry(s) was given for a module \
+                 of {freedoms} degree(s) of freedom"
             ),
             Error::ExponentWidth { variables, given } => write!(
                 formatter,
-                "an exponent vector of {given} entry(s) was given for {variables}                  variable(s)"
+                "an exponent vector of {given} entry(s) was given for \
+                 {variables} variable(s)"
             ),
             Error::LatticeOverflow => write!(
                 formatter,
-                "the integer lattice arithmetic left the width it is computed in,                  and it is refused rather than wrapped"
+                "the integer lattice arithmetic left the width it is computed \
+                 in, and it is refused rather than wrapped"
             ),
             Error::PointWidth { variables, given } => write!(
                 formatter,
@@ -228,8 +234,107 @@ impl fmt::Display for Error {
 
 impl core::error::Error for Error {}
 
+/// Every variant, so the test below cannot pass by not looking at one.
+///
+/// Written here rather than in the test module because it is the list a new
+/// variant has to be added to, and a list next to the enum is one somebody
+/// editing the enum sees.
+#[cfg(test)]
+const EVERY_VARIANT: &[Error] = &[
+    Error::Index(IndexError::NoVariables),
+    Error::NoFreedoms,
+    Error::FreedomsDiffer { left: 2, right: 3 },
+    Error::OrderDiffers { left: 4, right: 5 },
+    Error::OrderAboveTruncation {
+        requested: 6,
+        order: 2,
+    },
+    Error::DegreeAboveTruncation {
+        degree: 7,
+        order: 3,
+    },
+    Error::SizeBeyondAddressable {
+        variables: 6,
+        degree: 8,
+        dimension: 9,
+    },
+    Error::RelationWidth {
+        freedoms: 3,
+        given: 2,
+        at: 1,
+    },
+    Error::EveryTermResonant {
+        freedoms: 2,
+        rank: 2,
+    },
+    Error::MultiIndexWidth {
+        freedoms: 3,
+        given: 2,
+    },
+    Error::ExponentWidth {
+        variables: 6,
+        given: 2,
+    },
+    Error::LatticeOverflow,
+    Error::PointWidth {
+        variables: 4,
+        given: 2,
+    },
+];
+
 impl From<IndexError> for Error {
     fn from(error: IndexError) -> Self {
         Error::Index(error)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::EVERY_VARIANT;
+
+    /// A refusal is one line of ordinary prose.
+    ///
+    /// The mistake this catches is not a typo. A message written across several
+    /// source lines uses the language's line continuation, which drops the
+    /// newline and the indentation after it, and a later edit that pulls the
+    /// pieces onto one line leaves the indentation behind as a run of spaces
+    /// inside the string. Three refusals shipped that way, and nothing noticed,
+    /// because a message is not compared against anything.
+    ///
+    /// It also refuses a newline, which is the other way that repair goes
+    /// wrong: writing the continuation as an escape rather than as a real line
+    /// break puts a line ending in the middle of what a caller prints.
+    ///
+    /// Delete either assertion and this goes red on the message the other one
+    /// would have caught, which is why they are two assertions and not one.
+    #[test]
+    fn no_refusal_carries_a_run_of_spaces_or_a_line_break() {
+        for error in EVERY_VARIANT {
+            let message = error.to_string();
+            assert!(
+                !message.contains("  "),
+                "{error:?} prints a run of spaces: {message:?}"
+            );
+            assert!(
+                !message.contains('\n'),
+                "{error:?} prints a line break: {message:?}"
+            );
+        }
+    }
+
+    /// Every variant is in the list the test above walks.
+    ///
+    /// A guard over a list is only as good as the list, and the failure this
+    /// catches is a variant added to the enum and not to `EVERY_VARIANT`, which
+    /// leaves the new message unread by anything. There is no way to enumerate
+    /// an enum's variants at run time, so what stands in for it is a count that
+    /// somebody has to move deliberately.
+    #[test]
+    fn the_list_the_guard_walks_holds_every_variant() {
+        assert_eq!(
+            EVERY_VARIANT.len(),
+            13,
+            "a variant was added or removed; add it to EVERY_VARIANT and move this count"
+        );
     }
 }
