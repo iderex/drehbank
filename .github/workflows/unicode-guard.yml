@@ -1,8 +1,10 @@
 name: unicode-guard
 
 on:
-  # Every branch and every PR: the guard is a cheap read-only scan and must cover
-  # any future release branch too, not just main (one code line since #954).
+  # Every branch and every PR: the guard is a cheap read-only scan, and covering
+  # every branch now means a future release branch is covered without anybody
+  # remembering to widen this. There is one code line today, which is what
+  # SECURITY.md says under "Supported versions".
   push:
     branches: ["**"]
   pull_request:
