@@ -6,13 +6,19 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+name = "drehbank_scaling_harness"
+path = "src/lib.rs"
+
 [[bin]]
 name = "drehbank-scaling-harness"
 path = "src/main.rs"
 
-# None yet. What this harness measures, and therefore what it has to link, is
-# issue #51.
+# The kernel it measures and the index arithmetic its cost is computed from.
+# Both are the workspace's own, so the graph a caller links is unmoved: the
+# entry that says so is in docs/dependencies.md.
 [dependencies]
+drehbank-core = { path = "../drehbank-core" }
 
 # The workspace decides the lint levels, so this crate cannot drift from the
 # gate by keeping its own.

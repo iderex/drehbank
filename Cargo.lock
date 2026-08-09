@@ -37,6 +37,9 @@ dependencies = [
 [[package]]
 name = "drehbank-scaling-harness"
 version = "0.0.0"
+dependencies = [
+ "drehbank-core",
+]
 
 [[package]]
 name = "getrandom"

@@ -50,8 +50,18 @@ is no input whose answer a caller could have pinned. #29
 The resonance lattice answers a membership question and a count of retained
 terms rather than producing a coefficient, so nothing there moved either. #39
 
+The scaling harness measures how long a product takes and computes what it
+would cost in memory. It changes no coefficient the package returns. #51
+
 ### Added
 
+- The scaling and measurement harness says what it needs before it runs
+  anything. It prints that it is not part of the gate, computes the peak live
+  set of each case from the case rather than quoting a number, refuses a case
+  that does not fit the memory ceiling it was given, and prints what a skipped
+  case would have cost. Measurements that need a privileged hardware counter are
+  reported as not made, and no privilege is asked for on any host. Every
+  recorded run carries the machine it ran on, in `docs/scaling-runs.md`. #51
 - The resonance module as a lattice. A declaration of integer relations is
   replaced by the canonical basis of the lattice they generate, which includes
   the relations the declaration only implies, so two ways of writing one
