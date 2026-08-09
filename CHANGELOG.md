@@ -43,6 +43,10 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. Correcting what the workflow files say about themselves changes comments
+and one error message. No workflow step and no crate source moved, so no
+coefficient the package returns can have moved either. #57
+
 None. The supply chain triage reads what an audit reported about the repository
 and writes down what was accepted. It compiles nothing and no coefficient the
 package returns passes through it. #59
@@ -128,4 +132,9 @@ None.
 
 ### Fixed
 
-None.
+- The sign-off check no longer sends a contributor to a file that is not here.
+  Its failure message named `./DCO`, which does not exist in this tree, at the
+  moment somebody is already stuck; it now names the section of
+  `CONTRIBUTING.md` that states the rule. The headers of three workflows
+  described a release pipeline, an issue tracker and a branch policy belonging
+  to another project, and they now describe this one. #57
