@@ -10,7 +10,9 @@
 //! one binary rather than about the tree.
 #![allow(dead_code)]
 
+pub mod bracket_fixture;
 pub mod exact;
+pub mod gaussian;
 pub mod lattice_fixture;
 pub mod series_fixture;
 
