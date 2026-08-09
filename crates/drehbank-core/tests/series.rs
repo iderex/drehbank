@@ -448,10 +448,7 @@ fn the_identity_property_refuses_a_convolution_that_drops_the_top_degree() {
 /// to an order below the series' own separates the two, and truncating to the
 /// series' own order does not, because there both sides lose the same degree.
 ///
-/// The other properties here do **not** refuse it, and that is not an oversight.
-/// Commutativity, associativity and distributivity all compare one product of
-/// this convolution against another, so a convolution that loses its top degree
-/// loses it on both sides and agrees with itself.
+/// The test below records which properties do not refuse it.
 #[test]
 fn the_truncation_property_refuses_a_convolution_that_drops_the_top_degree() {
     let outcome = truncation_commutes_with_multiplication::<Exact>(
@@ -461,5 +458,34 @@ fn the_truncation_property_refuses_a_convolution_that_drops_the_top_degree() {
     assert!(
         matches!(failure, TestError::Fail(..)),
         "the property has to fail on the case rather than give up on the generator: {failure}"
+    );
+}
+
+/// What the two proofs above do not cover, run rather than asserted.
+///
+/// Commutativity, associativity and distributivity each compare one product of
+/// a multiplication against another product of the same multiplication, so a
+/// convolution that loses its top degree loses it on both sides and agrees with
+/// itself. Left as a sentence, that is a claim about three properties nobody
+/// ran; here it is the run. The three pass against the broken convolution, and
+/// this test says so.
+///
+/// It goes red if a later change makes one of them sharper, which is the point:
+/// the bound of a proof moving is a thing somebody should have to look at
+/// rather than a comment that quietly stops being true.
+#[test]
+fn the_other_properties_do_not_refuse_that_convolution() {
+    let broken = support::series_fixture::product_dropping_the_top_degree;
+    assert!(
+        multiplication_is_commutative::<Exact>(broken).is_ok(),
+        "commutativity was expected to be blind to a lost top degree"
+    );
+    assert!(
+        multiplication_is_associative::<Exact>(broken).is_ok(),
+        "associativity was expected to be blind to a lost top degree"
+    );
+    assert!(
+        multiplication_distributes_over_addition::<Exact>(broken).is_ok(),
+        "distributivity was expected to be blind to a lost top degree"
     );
 }
