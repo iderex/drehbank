@@ -43,6 +43,12 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. Near resonance detection reports divisors of a frequency vector rather
+than computing a coefficient, and no path in the package consults it, so nothing
+a caller could have pinned moves. Accepting a proposal produces the same
+canonical basis the same relations would have produced if they had been declared
+by hand, which is asserted by a test rather than by this line. #40
+
 None. The Poisson bracket and the partial derivative are new operations, so
 there is no input whose bracket a caller could have pinned and no coefficient
 the package already returned has moved. The sign they are written in is the one
@@ -60,6 +66,18 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- Near resonance detection, which is advisory and applies nothing. Given a
+  frequency vector, a tolerance on the relative divisor and a bound on the order
+  of the relations to consider, it returns every multi-index under the
+  tolerance, each with its divisor, its order and its relative divisor, together
+  with the canonical basis of the lattice they generate. The output is a
+  proposal and not a module: the only way it becomes the module in force is an
+  explicit acceptance, and a module that came from one records the tolerance and
+  the order bound it came from, so a result can say whether its resonance was
+  declared or accepted. How large a coefficient each relation would actually
+  reach in a given Hamiltonian is available too, because a near resonance whose
+  coefficient is zero is not a problem. #40
 
 - The Poisson bracket of two series, and the partial derivative it is built
   from. The sign is the one item 3 of `docs/decisions/0004-conventions.md`
