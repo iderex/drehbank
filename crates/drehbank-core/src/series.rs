@@ -32,7 +32,65 @@
 
 use crate::coefficient::Coefficient;
 use crate::error::Error;
-use crate::monomial::{DegreeTable, IndexError, Scratch, exponents_into, product_index_with};
+use crate::monomial::{
+    DegreeTable, IndexError, Scratch, exponents_into, index_of, product_index_with,
+};
+
+/// The truncation order a bracket of these two orders carries.
+///
+/// Not the order of either argument, which is the bookkeeping issue #30 names:
+/// a driver that assumes the arguments' order loses the top of every bracket it
+/// takes, silently, because the terms it drops are the ones the arguments were
+/// carried to that order for.
+///
+/// It is derived rather than chosen. The bracket of item 3 of 0004 is a sum of
+/// products of one derivative of the left with one derivative of the right, a
+/// derivative lowers the order by one, and a product carries the sum of the two
+/// orders. So the answer is `(left - 1) + (right - 1)`, which for arguments of
+/// order two and above is the `d + e - 2` grading item 3 states.
+///
+/// The subtractions saturate rather than wrap, and what that covers is an
+/// argument of order zero, which is a constant. Its derivative is zero, so the
+/// bracket is the zero series whatever the other argument is, and the order
+/// stated here is then higher than the grading rule would give. A zero series
+/// carried to a higher order is still zero at every degree, so the statement is
+/// true rather than merely safe.
+///
+/// # What this order is a statement about
+///
+/// It is the highest degree the two arguments *as they stand* determine. Where
+/// they are themselves truncations of longer series, the top degrees of the
+/// bracket are missing the contributions of the terms that were truncated away,
+/// and the caller is the one who knows that. [`Series::truncated`] is how the
+/// caller says what it can stand behind, for the reason
+/// [`Series::add_in_place`] gives: taking the smaller order here would be the
+/// arithmetic deciding what the caller meant.
+pub fn bracket_order(left: u32, right: u32) -> u32 {
+    left.saturating_sub(1)
+        .saturating_add(right.saturating_sub(1))
+}
+
+/// Which way a convolution goes into its destination.
+///
+/// The two terms of item 3 of 0004 differ only in this, and a boolean argument
+/// at the call site would read as `true` and `false` where the thing that
+/// matters is the minus sign the whole antisymmetry of the bracket rests on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Sign {
+    Add,
+    Subtract,
+}
+
+/// The exponent brought down by a derivative, as a coefficient.
+///
+/// Separate from the loop that uses it so the refusal has somewhere to be
+/// tested from. See [`Error::MultiplierBeyondCoefficient`] for why an exponent
+/// that does not fit is refused rather than cast.
+fn derivative_multiplier<C: Coefficient>(exponent: u32) -> Result<C, Error> {
+    let multiplier =
+        i32::try_from(exponent).map_err(|_| Error::MultiplierBeyondCoefficient { exponent })?;
+    Ok(C::from_small_integer(multiplier))
+}
 
 /// A polynomial series in `2v` variables, truncated at a total degree.
 ///
@@ -254,6 +312,153 @@ impl<C: Coefficient> Series<C> {
         Ok(result)
     }
 
+    /// The partial derivative of this series with respect to one variable.
+    ///
+    /// The variables are numbered from zero in the order item 1 of 0004 fixes,
+    /// so `0 .. v` are `q_1 .. q_v` and `v .. 2v` are `p_1 .. p_v`. The
+    /// conjugate partner of variable `j` is `j + v` and never `j + 1`.
+    ///
+    /// A derivative lowers the degree by one, so the result carries one order
+    /// less than this series and the order zero case is the zero series. It is
+    /// a scatter with a multiplier, exactly as the product is: each term is
+    /// written to the index of its own exponent vector with one exponent taken
+    /// down, and that index is computed rather than searched for.
+    pub fn derivative(&self, variable: usize) -> Result<Self, Error> {
+        let variables = self.variables();
+        if variable >= variables {
+            return Err(Error::VariableBeyondPhaseSpace {
+                variables,
+                given: variable,
+            });
+        }
+        let mut result = Series::zero(self.freedoms, self.order.saturating_sub(1))?;
+        let mut exponents = vec![0u32; variables];
+        let mut shifted = vec![0u64; variables - 1];
+        // Degree zero contributes nothing, and at order zero this range is
+        // empty, which is the zero series the documentation promises.
+        for degree in 1..=self.order {
+            if self.degrees[degree as usize].is_empty() {
+                continue;
+            }
+            for index in 0..self.degrees[degree as usize].len() {
+                exponents_into(index as u64, degree, &mut exponents, &mut shifted)?;
+                let exponent = exponents[variable];
+                if exponent == 0 {
+                    continue;
+                }
+                let multiplier: C = derivative_multiplier(exponent)?;
+                exponents[variable] = exponent - 1;
+                let target = index_of(&exponents, degree - 1)?;
+                let value = self.degrees[degree as usize][index].multiply(&multiplier);
+                result.store(degree - 1)?;
+                let slot: &mut C = &mut result.degrees[(degree - 1) as usize][target as usize];
+                *slot = slot.add(&value);
+            }
+        }
+        Ok(result)
+    }
+
+    /// The Poisson bracket of two series, in the sign convention of item 3 of
+    /// 0004.
+    ///
+    /// ```text
+    /// {f, g} = sum over j = 1..v of ( df/dq_j * dg/dp_j - df/dp_j * dg/dq_j )
+    /// ```
+    ///
+    /// Under this sign the evolution of a function is `df/dt = {f, H}`, the
+    /// bracket is antisymmetric, and the bracket of a piece of degree `d` with
+    /// one of degree `e` is homogeneous of degree `d + e - 2`.
+    ///
+    /// # The order of the answer
+    ///
+    /// [`bracket_order`] is that order and states where it comes from. Unlike
+    /// [`Series::product`], this operation does not require the two arguments
+    /// to carry the same truncation order, because it does not have to choose
+    /// between them: each argument contributes its own derivative and the
+    /// answer is known to the sum of the two derivative orders. Both arguments
+    /// still have to be in the same phase space, and that is refused with both
+    /// sides named.
+    pub fn bracket(&self, other: &Self) -> Result<Self, Error> {
+        if self.freedoms != other.freedoms {
+            return Err(Error::FreedomsDiffer {
+                left: self.freedoms,
+                right: other.freedoms,
+            });
+        }
+        let freedoms = self.freedoms;
+        let mut result = Series::zero(freedoms, bracket_order(self.order, other.order))?;
+        let mut scratch = Scratch::new(self.variables())?;
+        for position in 0..freedoms {
+            let momentum = position + freedoms;
+            let left_position = self.derivative(position)?;
+            let right_momentum = other.derivative(momentum)?;
+            result.accumulate(&left_position, &right_momentum, Sign::Add, &mut scratch)?;
+            let left_momentum = self.derivative(momentum)?;
+            let right_position = other.derivative(position)?;
+            result.accumulate(
+                &left_momentum,
+                &right_position,
+                Sign::Subtract,
+                &mut scratch,
+            )?;
+        }
+        Ok(result)
+    }
+
+    /// Add or subtract the product of two series into this one.
+    ///
+    /// The convolution of [`Series::product`] with two differences: it
+    /// accumulates into a destination that already holds something, and the
+    /// destination's order is the sum of the two arguments' orders rather than
+    /// the order they share. Every pair of degrees therefore lands inside the
+    /// destination and none is skipped, which is what makes the caller above
+    /// the only place the bracket's truncation is decided.
+    ///
+    /// Private, and its callers keep that invariant: [`Series::bracket`] sizes
+    /// the destination with [`bracket_order`] off the same two orders these
+    /// arguments were differentiated from.
+    fn accumulate(
+        &mut self,
+        left: &Self,
+        right: &Self,
+        sign: Sign,
+        scratch: &mut Scratch,
+    ) -> Result<(), Error> {
+        for left_degree in 0..=left.order {
+            if left.degrees[left_degree as usize].is_empty() {
+                continue;
+            }
+            for right_degree in 0..=right.order {
+                if right.degrees[right_degree as usize].is_empty() {
+                    continue;
+                }
+                let sum_degree = left_degree + right_degree;
+                self.store(sum_degree)?;
+                let left_values = &left.degrees[left_degree as usize];
+                let right_values = &right.degrees[right_degree as usize];
+                let destination = &mut self.degrees[sum_degree as usize];
+                for (left_index, left_value) in left_values.iter().enumerate() {
+                    for (right_index, right_value) in right_values.iter().enumerate() {
+                        let target = product_index_with(
+                            left_index as u64,
+                            left_degree,
+                            right_index as u64,
+                            right_degree,
+                            scratch,
+                        )?;
+                        let term = left_value.multiply(right_value);
+                        let slot = &mut destination[target as usize];
+                        *slot = match sign {
+                            Sign::Add => slot.add(&term),
+                            Sign::Subtract => slot.subtract(&term),
+                        };
+                    }
+                }
+            }
+        }
+        Ok(())
+    }
+
     /// This series truncated to a lower order.
     ///
     /// Dropping the tail of the degree vector, which is what 0003 buys with the
@@ -410,7 +615,7 @@ impl<C: Coefficient + Eq> Eq for Series<C> {}
 
 #[cfg(test)]
 mod tests {
-    use super::Series;
+    use super::{Series, bracket_order, derivative_multiplier};
     use crate::error::Error;
 
     /// The refusal that keeps two phase spaces apart names both of them, on
@@ -419,8 +624,14 @@ mod tests {
     /// Every one of them rather than a representative, because the guard is per
     /// call site and a new operation that forgets it is exactly the failure
     /// this is here for. Delete the `freedoms` arm of `check_combinable` and
-    /// this goes red, which is the proof the guard bites rather than a sentence
-    /// saying it would.
+    /// the first five go red, which is the proof the guard bites rather than a
+    /// sentence saying it would.
+    ///
+    /// The bracket is the sixth and it is the reason this test is worth
+    /// keeping. It does not go through `check_combinable`, because it is the
+    /// one binary operation that accepts two different truncation orders, so
+    /// it carries its own copy of the phase space arm and deleting that copy
+    /// reds this test on its own.
     #[test]
     fn combining_two_phase_spaces_is_refused_and_names_both() {
         let mismatch = Error::FreedomsDiffer { left: 2, right: 3 };
@@ -431,6 +642,135 @@ mod tests {
         assert_eq!(left.product(&right), Err(mismatch));
         assert_eq!(left.add_in_place(&right), Err(mismatch));
         assert_eq!(left.subtract_in_place(&right), Err(mismatch));
+        assert_eq!(left.bracket(&right), Err(mismatch));
+    }
+
+    /// The bracket of the position with the quadratic part is the linear flow,
+    /// on a case written out by hand.
+    ///
+    /// One degree of freedom, so two variables `(q_1, p_1)` in the order of
+    /// item 1 of 0004. In two variables the rank of 0003 reduces to
+    /// `index = a_1`, so at degree one index 0 is `p_1` and index 1 is `q_1`,
+    /// and at degree two index 0 is `p_1^2` and index 2 is `q_1^2`.
+    ///
+    /// Item 6 of 0004 normalises the quadratic part as
+    /// `H_2 = (omega/2)(q_1^2 + p_1^2)`, so at `omega = 2` it is
+    /// `q_1^2 + p_1^2` with no fraction to represent. Item 3's bracket then
+    /// gives
+    ///
+    ///     {q_1, H_2} = 1 * 2 p_1 - 0 = 2 p_1        {p_1, H_2} = 0 - 1 * 2 q_1 = -2 q_1
+    ///
+    /// which is `dq/dt = omega p` and `dp/dt = -omega q`, the equations of
+    /// motion of item 2 and the rotation of item 6. A package that took the
+    /// opposite bracket sign would return both with the signs exchanged, and a
+    /// package that halved the quadratic part would return half of each.
+    #[test]
+    fn the_bracket_with_the_quadratic_part_is_the_linear_flow() {
+        let mut quadratic: Series<f64> = Series::zero(1, 2).expect("order two is addressable");
+        quadratic
+            .set_coefficient(2, 2, 1.0)
+            .expect("degree two holds q_1^2 at index two");
+        quadratic
+            .set_coefficient(2, 0, 1.0)
+            .expect("degree two holds p_1^2 at index zero");
+
+        let mut position: Series<f64> = Series::zero(1, 1).expect("order one is addressable");
+        position
+            .set_coefficient(1, 1, 1.0)
+            .expect("degree one holds q_1 at index one");
+        let mut momentum: Series<f64> = Series::zero(1, 1).expect("order one is addressable");
+        momentum
+            .set_coefficient(1, 0, 1.0)
+            .expect("degree one holds p_1 at index zero");
+
+        let mut flow_of_position: Series<f64> =
+            Series::zero(1, 1).expect("order one is addressable");
+        flow_of_position
+            .set_coefficient(1, 0, 2.0)
+            .expect("degree one holds p_1 at index zero");
+        let mut flow_of_momentum: Series<f64> =
+            Series::zero(1, 1).expect("order one is addressable");
+        flow_of_momentum
+            .set_coefficient(1, 1, -2.0)
+            .expect("degree one holds q_1 at index one");
+
+        assert_eq!(
+            position
+                .bracket(&quadratic)
+                .expect("both are in the same phase space"),
+            flow_of_position
+        );
+        assert_eq!(
+            momentum
+                .bracket(&quadratic)
+                .expect("both are in the same phase space"),
+            flow_of_momentum
+        );
+    }
+
+    /// A derivative with respect to a variable the phase space has not got is
+    /// refused, and the refusal names the width.
+    ///
+    /// Two degrees of freedom is four variables numbered 0 to 3, so 4 is the
+    /// first one that is not there and it is what a caller counting from one
+    /// reaches for.
+    #[test]
+    fn a_derivative_outside_the_phase_space_is_refused() {
+        let series: Series<f64> = Series::zero(2, 3).expect("order three is addressable");
+        assert_eq!(
+            series.derivative(4).err(),
+            Some(Error::VariableBeyondPhaseSpace {
+                variables: 4,
+                given: 4
+            })
+        );
+    }
+
+    /// The multiplier a derivative brings down is refused rather than cast when
+    /// it does not fit.
+    ///
+    /// Delete the `try_from` in `derivative_multiplier` and write `exponent as
+    /// i32` instead, and this goes red: the cast turns `u32::MAX` into `-1`,
+    /// which is a coefficient the arithmetic accepts and the wrong one.
+    ///
+    /// Tested here rather than through a series, because the series that would
+    /// carry such an exponent needs a truncation order above two billion and no
+    /// host can allocate one. That is what the second half of this assertion is
+    /// for: an exponent an ordinary series does carry passes through.
+    #[test]
+    fn the_derivative_multiplier_refuses_an_exponent_it_cannot_carry() {
+        assert_eq!(
+            derivative_multiplier::<f64>(u32::MAX).err(),
+            Some(Error::MultiplierBeyondCoefficient { exponent: u32::MAX })
+        );
+        assert_eq!(derivative_multiplier::<f64>(3).ok(), Some(3.0));
+    }
+
+    /// The order of a bracket, against the grading item 3 of 0004 states.
+    ///
+    /// The first three are `d + e - 2` written out. The last two are the
+    /// saturating cases, where one argument is a constant, the bracket is the
+    /// zero series and the order stated is above what the grading would give.
+    #[test]
+    fn a_bracket_carries_the_order_the_grading_gives() {
+        assert_eq!(bracket_order(4, 4), 6);
+        assert_eq!(bracket_order(2, 3), 3);
+        assert_eq!(bracket_order(1, 1), 0);
+        assert_eq!(bracket_order(0, 5), 4);
+        assert_eq!(bracket_order(0, 0), 0);
+    }
+
+    /// The derivative of a constant is the zero series, and it says so at order
+    /// zero rather than refusing.
+    #[test]
+    fn the_derivative_of_a_constant_is_zero() {
+        let constant: Series<f64> = Series::unit(2, 0).expect("order zero is addressable");
+        let derivative = constant.derivative(0).expect("variable zero is in range");
+        assert_eq!(derivative.order(), 0);
+        assert_eq!(
+            derivative,
+            Series::zero(2, 0).expect("order zero is addressable")
+        );
     }
 
     /// A series evaluated at a point, against a value computed by hand.

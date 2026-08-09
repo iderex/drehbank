@@ -7,8 +7,9 @@
 //! The monomial index of issue #28 is in [`monomial`], the coefficient
 //! abstraction of `docs/decisions/0002-coefficients.md` is in [`coefficient`],
 //! the truncated series of issue #29 is in [`series`], and the resonance
-//! lattice of issue #39 is in [`resonance`]. The bracket, the Lie transforms and
-//! the estimates are still to come.
+//! lattice of issue #39 is in [`resonance`]. The partial derivative and the
+//! Poisson bracket of issue #30 are in [`series`] too, beside the arithmetic
+//! they are built from. The Lie transforms and the estimates are still to come.
 //!
 //! Nothing in this crate may depend on the command line, so that the boundary
 //! the dependency check applies to is the one the workspace declares.

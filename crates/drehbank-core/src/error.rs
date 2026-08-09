@@ -153,6 +153,38 @@ pub enum Error {
         /// The number of entries the point carried.
         given: usize,
     },
+
+    /// A derivative was asked for with respect to a variable the series has
+    /// not got.
+    ///
+    /// The variables are numbered from zero in the order of item 1 of 0004, so
+    /// `q_1` is 0 and `p_v` is `2v - 1`. A caller counting from one meets this
+    /// on the last degree of freedom rather than on the first, which is why the
+    /// refusal names the width rather than only saying the number was too
+    /// large.
+    VariableBeyondPhaseSpace {
+        /// The number of variables the series is in.
+        variables: usize,
+        /// The variable that was asked for.
+        given: usize,
+    },
+
+    /// A derivative whose multiplier is outside the integers a coefficient can
+    /// be built from.
+    ///
+    /// Differentiating brings the exponent down as a factor, and
+    /// [`crate::coefficient::Coefficient::from_small_integer`] takes an `i32`
+    /// because that is what the weights of this algebra are. An exponent above
+    /// that is refused rather than cast, because a wrapped multiplier is a
+    /// perfectly ordinary looking coefficient and the wrong one.
+    ///
+    /// This is the boundary [`Error::SizeBeyondAddressable`] is: a limit of the
+    /// machine rather than of the mathematics. Reaching it needs a series whose
+    /// truncation order is above two billion, which no host can hold.
+    MultiplierBeyondCoefficient {
+        /// The exponent that could not become a coefficient.
+        exponent: u32,
+    },
 }
 
 impl fmt::Display for Error {
@@ -228,6 +260,16 @@ impl fmt::Display for Error {
                 "an evaluation point of {given} entry(s) was given for a series \
                  in {variables} variable(s)"
             ),
+            Error::VariableBeyondPhaseSpace { variables, given } => write!(
+                formatter,
+                "a derivative with respect to variable {given} was asked of a \
+                 series in {variables} variable(s), numbered from zero"
+            ),
+            Error::MultiplierBeyondCoefficient { exponent } => write!(
+                formatter,
+                "differentiating brings down the exponent {exponent}, which is \
+                 outside the integers a coefficient can be built from"
+            ),
         }
     }
 }
@@ -280,6 +322,11 @@ const EVERY_VARIANT: &[Error] = &[
         variables: 4,
         given: 2,
     },
+    Error::VariableBeyondPhaseSpace {
+        variables: 4,
+        given: 4,
+    },
+    Error::MultiplierBeyondCoefficient { exponent: u32::MAX },
 ];
 
 impl From<IndexError> for Error {
@@ -333,7 +380,7 @@ mod tests {
     fn the_list_the_guard_walks_holds_every_variant() {
         assert_eq!(
             EVERY_VARIANT.len(),
-            13,
+            15,
             "a variant was added or removed; add it to EVERY_VARIANT and move this count"
         );
     }

@@ -43,6 +43,12 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. The Poisson bracket and the partial derivative are new operations, so
+there is no input whose bracket a caller could have pinned and no coefficient
+the package already returned has moved. The sign they are written in is the one
+`docs/decisions/0004-conventions.md` already fixed, so nothing about the
+convention moved either. #30
+
 None. The series arithmetic and the evaluation of a series at a point are the
 first numbers the package produces, so they are new rather than moved and there
 is no input whose answer a caller could have pinned. #29
@@ -54,6 +60,15 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- The Poisson bracket of two series, and the partial derivative it is built
+  from. The sign is the one item 3 of `docs/decisions/0004-conventions.md`
+  fixes, under which the evolution of a function is `{f, H}`. The bracket states
+  its own truncation order, which is not the order of its arguments: it is the
+  sum of the two derivative orders, so a bracket of two series of order `N`
+  answers at order `2N - 2` and nothing that the arguments determine is dropped.
+  It is the one binary operation that accepts two arguments of different orders,
+  because it has no reason to choose between them. #30
 
 - The scaling and measurement harness says what it needs before it runs
   anything. It prints that it is not part of the gate, computes the peak live
