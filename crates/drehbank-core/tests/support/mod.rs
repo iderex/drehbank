@@ -11,6 +11,7 @@
 #![allow(dead_code)]
 
 pub mod exact;
+pub mod lattice_fixture;
 pub mod series_fixture;
 
 use std::fs;
