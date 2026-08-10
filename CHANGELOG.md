@@ -102,13 +102,15 @@ would cost in memory. It changes no coefficient the package returns. #51
   where a person meets it rather than only in a job log. Until now the two
   workflows that publish there read the workflow directory and the repository's
   supply-chain hygiene, and neither looked at a line of Rust. It runs on pull
-  requests, on the mainline and once a week, and the weekly run takes the
-  current query bundle rather than the one the pinned action shipped with, so a
-  query added upstream reaches code that has stopped changing. Any finding at
-  all reds the check named `Static analysis`. The step that decides that reads
-  two report fixtures on every run, one holding a finding and one holding none,
-  so a refusal that has stopped refusing is visible before there is anything to
-  refuse. #57
+  requests, on the mainline and once a week. Any finding at all reds the check
+  named `Static analysis`. The step that decides that reads two report fixtures
+  on every run, one holding a finding and one holding none, so a refusal that
+  has stopped refusing is visible before there is anything to refuse. What the
+  analysis does not see is written in the file with the numbers behind it: the
+  source is extracted without a build, 21 of the 26 tracked Rust files carried a
+  macro the extractor could not expand, and code inside one of those is not in
+  the database a query runs against. The analyser's version is pinned with the
+  action rather than taken fresh, so the queries move when that pin moves. #57
 
 - A "Changing a workflow" section in the contribution guide, which is where
   somebody about to write one looks. It carries the four rules a workflow here

@@ -12,22 +12,39 @@
 # query suite and a lint set answer different questions, and a finding here is
 # one nobody was going to see from a red lint.
 #
-# The schedule is the half a pull request cannot do. A pull request analyses the
-# code that changed; a query added to the suite afterwards reaches only code
-# that changes again, and the parts of this tree least likely to change are the
-# index arithmetic and the kernels. `tools: latest` is what makes the schedule
-# mean something: it takes the current CodeQL bundle rather than the one the
-# pinned action shipped with, so a new query arrives without waiting for the
-# pin to be raised. The cost is stated rather than hidden. Two runs of one
-# commit can disagree, and the mainline can go red on a day nobody pushed. That
-# is the same trade advisory-scan.yml already makes for the same reason, and it
-# is the trade this job exists for: a rule that cannot reach old code is a rule
-# this repository does not have.
+# What the schedule buys is narrower than it looks, and the narrow version is
+# the true one. The analyser's version is pinned with the action, so a scheduled
+# run evaluates the same queries the last one did: `tools: linked` is the
+# default and is set here anyway, because reading a result means knowing which
+# version produced it and a default that moved would move that silently. A new
+# query therefore arrives when the pin is raised, and the run on the change that
+# raises it already reaches old code, because CodeQL evaluates a database of the
+# whole tree rather than a diff. What the weekly run says is that the analysis
+# still runs at all. It stands on an action, a bundle, a runner image and a
+# registry lookup, none of which are in this tree, and on a tree nobody is
+# changing the alternative to a schedule is finding out at the next pull
+# request.
 #
 # `build-mode: none` reads the source without compiling it. The compile is
 # build-and-test.yml's job and it already runs on every one of these events; a
 # second full build here would buy the analysis nothing and cost every run the
 # minutes.
+#
+# What that costs, measured on the first run of this file rather than supposed.
+# Without a build the extractor cannot expand every macro, and 21 of the 26
+# tracked Rust files carried at least one `macro expansion failed` diagnostic:
+# `assert_eq`, `vec`, `assert`, `write`, `format`, `panic` and proptest's
+# assertions, 366 of them, all at warning level and none at error. Code inside
+# an invocation the extractor could not expand is not in the database, so no
+# query reaches it, and the test files are where most of those invocations are.
+# A run reporting no findings is reporting none over a database that does not
+# hold all of this tree, and the five files that came through clean are
+# `coefficient.rs`, `lib.rs` and three of the test-support files. The counts are
+# printed by the analyse step on every run, under "Analysis produced the
+# following metric data", which is where a change in them is visible. The step
+# below refuses findings and does not refuse a diagnostic; making it refuse one
+# would red this tree today for a limitation of the extractor rather than for
+# anything in the source.
 #
 # The rules this file has to satisfy as a workflow are in the "Changing a
 # workflow" section of CONTRIBUTING.md, which carries the command behind each
@@ -79,7 +96,10 @@ jobs:
         with:
           languages: rust
           build-mode: none
-          tools: latest
+          # The bundle the pinned action ships with, named rather than left to a
+          # default. `latest` is the old spelling of this same value and the run
+          # says so in a deprecation warning; it does not fetch a newer bundle.
+          tools: linked
 
       - name: Analyse and publish
         uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
