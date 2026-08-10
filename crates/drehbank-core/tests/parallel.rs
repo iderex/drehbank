@@ -213,6 +213,13 @@ fn both_kernels_agree_with_the_sequential_ones_in_the_exact_fixture_ring()
 /// refuse a wrong order on an input where every order gives the same answer.
 /// The coefficient of `q^2` receives one, then half a step above one, then half
 /// a step, and the two ways of adding those three are different numbers.
+///
+/// Compared as bit patterns rather than as values, like everything else in this
+/// file. `tests/series.rs` works out at length why its own binary64 equality is
+/// exact rather than toleranced and says it is the only place in the suite that
+/// compares binary64 directly; a second place here would make that sentence
+/// false and would carry no such argument of its own. Bits are also the
+/// stronger comparison, and this test is about which of two numbers came out.
 #[test]
 fn the_near_miss_case_has_two_orders_that_are_different_numbers() -> Result<(), Error> {
     let (left, right) = near_miss()?;
@@ -220,8 +227,8 @@ fn the_near_miss_case_has_two_orders_that_are_different_numbers() -> Result<(), 
     let in_order = left.product(&right)?.coefficient(2, index)?;
     let reversed =
         product_reducing_in_completion_order(&left, &right, pool(1))?.coefficient(2, index)?;
-    assert_eq!(in_order, 1.0);
-    assert_eq!(reversed, 1.0 + 2.0 * HALF_STEP);
+    assert_eq!(in_order.to_bits(), 1.0_f64.to_bits());
+    assert_eq!(reversed.to_bits(), (1.0 + 2.0 * HALF_STEP).to_bits());
     assert_ne!(in_order.to_bits(), reversed.to_bits());
     Ok(())
 }
