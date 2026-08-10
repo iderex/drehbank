@@ -43,6 +43,10 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. Analysing the source adds a workflow, two report fixtures and four lines
+of the contribution guide. No crate source, no build step and no dependency
+moved, so no coefficient the package returns can have moved either. #57
+
 None. Stating the workflow rules in the contribution guide adds prose to one
 document and replaces a comment in one workflow file. No workflow step, no crate
 source and no dependency moved, so no coefficient the package returns can have
@@ -93,6 +97,18 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- Static analysis of the Rust source, published into the code-scanning tab
+  where a person meets it rather than only in a job log. Until now the two
+  workflows that publish there read the workflow directory and the repository's
+  supply-chain hygiene, and neither looked at a line of Rust. It runs on pull
+  requests, on the mainline and once a week, and the weekly run takes the
+  current query bundle rather than the one the pinned action shipped with, so a
+  query added upstream reaches code that has stopped changing. Any finding at
+  all reds the check named `Static analysis`. The step that decides that reads
+  two report fixtures on every run, one holding a finding and one holding none,
+  so a refusal that has stopped refusing is visible before there is anything to
+  refuse. #57
 
 - A "Changing a workflow" section in the contribution guide, which is where
   somebody about to write one looks. It carries the four rules a workflow here
@@ -164,7 +180,11 @@ would cost in memory. It changes no coefficient the package returns. #51
 
 ### Changed
 
-None.
+- The counts in the "Changing a workflow" section of the contribution guide,
+  which moved when the analysis workflow landed: eleven checkouts and eleven
+  refusals rather than ten, and four job-level write scopes rather than three.
+  The commands beside them are unchanged and are what print the new numbers.
+  #57
 
 ### Removed
 
