@@ -17,8 +17,11 @@
 //! The decisions are all in the library beside this file, which is where they
 //! can be read and tested without a large machine.
 
+use std::num::NonZero;
 use std::path::PathBuf;
 use std::process::ExitCode;
+
+use drehbank_core::parallel::Pool;
 
 use drehbank_scaling_harness::{
     CASES, COUNTER_MEASUREMENTS, Case, Host, Machine, Skip, admit, append_record, record_line,
@@ -37,12 +40,10 @@ fn main() -> ExitCode {
     };
 
     let machine = Machine::read();
-    let parallelism = std::thread::available_parallelism()
-        .ok()
-        .map(std::num::NonZero::get);
+    let available = std::thread::available_parallelism().ok();
     let host = Host {
-        parallelism,
-        pool: request.pool.or(parallelism).unwrap_or(1),
+        parallelism: available.map(NonZero::get),
+        pool: request.pool.or(available).unwrap_or(NonZero::<usize>::MIN),
         ceiling: request.memory,
     };
 
@@ -58,8 +59,9 @@ fn main() -> ExitCode {
         ),
     }
     println!(
-        "pool size: {}, requested and not yet used, because the product kernel in the tree is sequential and parallel execution is issue #49",
-        host.pool
+        "pool size: {} thread(s), which is what the kernel runs on, partitioned in          chunks of {} coefficient(s)",
+        host.pool,
+        Pool::of(host.pool).chunk()
     );
     println!();
     for measurement in COUNTER_MEASUREMENTS {
@@ -169,7 +171,7 @@ this harness does not read the host's memory and will not guess it.";
 struct Request {
     case: Option<String>,
     memory: Option<u64>,
-    pool: Option<usize>,
+    pool: Option<NonZero<usize>>,
     record: PathBuf,
 }
 
@@ -204,13 +206,13 @@ impl Request {
                 }
                 "--pool" => {
                     let given = value()?;
-                    let pool: usize = given
+                    let count: usize = given
                         .parse()
                         .map_err(|_| format!("--pool wants a count, not {given:?}"))?;
-                    if pool == 0 {
-                        return Err("--pool wants at least one thread".to_string());
-                    }
-                    request.pool = Some(pool);
+                    request.pool = Some(
+                        NonZero::new(count)
+                            .ok_or_else(|| "--pool wants at least one thread".to_string())?,
+                    );
                     rest.next();
                 }
                 "--record" => {

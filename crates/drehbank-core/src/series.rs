@@ -76,7 +76,7 @@ pub fn bracket_order(left: u32, right: u32) -> u32 {
 /// at the call site would read as `true` and `false` where the thing that
 /// matters is the minus sign the whole antisymmetry of the bracket rests on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Sign {
+pub(crate) enum Sign {
     Add,
     Subtract,
 }
@@ -519,6 +519,34 @@ impl<C: Coefficient> Series<C> {
         Ok(total)
     }
 
+    /// The coefficients of one degree, or an empty slice where the degree is
+    /// unstored or above the truncation.
+    ///
+    /// For [`crate::parallel`], which reads the operand arrays directly rather
+    /// than through [`Series::coefficient`] because it walks whole degrees at a
+    /// time. Empty for a degree above the order rather than a refusal, because
+    /// the caller's own loop bounds already exclude those and a second refusal
+    /// there would be an unreachable branch nothing could prove bites.
+    pub(crate) fn degree_slice(&self, degree: u32) -> &[C] {
+        self.degrees.get(degree as usize).map_or(&[], Vec::as_slice)
+    }
+
+    /// [`Series::store`], for [`crate::parallel`].
+    pub(crate) fn store_degree(&mut self, degree: u32) -> Result<(), Error> {
+        self.store(degree)
+    }
+
+    /// One degree's coefficients, to be written into.
+    ///
+    /// For [`crate::parallel`], which partitions this slice into chunks and
+    /// gives each chunk to one thread. Empty under the same condition as
+    /// [`Series::degree_slice`] and for the same reason.
+    pub(crate) fn degree_mut(&mut self, degree: u32) -> &mut [C] {
+        self.degrees
+            .get_mut(degree as usize)
+            .map_or(&mut [], Vec::as_mut_slice)
+    }
+
     /// Materialise a degree, if it is not stored already.
     fn store(&mut self, degree: u32) -> Result<(), Error> {
         if !self.degrees[degree as usize].is_empty() {
@@ -570,7 +598,7 @@ impl<C: Coefficient> Series<C> {
     /// arithmetic that reads one series with the other's index tables, which
     /// returns a number rather than an error and is the failure this package is
     /// least able to notice afterwards.
-    fn check_combinable(&self, other: &Self) -> Result<(), Error> {
+    pub(crate) fn check_combinable(&self, other: &Self) -> Result<(), Error> {
         if self.freedoms != other.freedoms {
             return Err(Error::FreedomsDiffer {
                 left: self.freedoms,

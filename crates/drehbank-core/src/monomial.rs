@@ -82,7 +82,7 @@ impl core::error::Error for IndexError {}
 /// Multiplicative rather than a Pascal triangle so that no table has to be sized
 /// before the bound it is being used to find is known. The division at each step
 /// is exact because the running product is `k` consecutive integers.
-fn binomial(n: u64, k: u64) -> Option<u64> {
+pub(crate) fn binomial(n: u64, k: u64) -> Option<u64> {
     if k > n {
         return Some(0);
     }

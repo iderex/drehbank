@@ -15,6 +15,7 @@ pub mod detection_fixture;
 pub mod exact;
 pub mod gaussian;
 pub mod lattice_fixture;
+pub mod parallel_fixture;
 pub mod series_fixture;
 
 use std::fs;
