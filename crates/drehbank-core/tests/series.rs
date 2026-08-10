@@ -38,8 +38,16 @@
 //! is 8128512, and a distributivity case adds two such together. All of those
 //! are integers below `2^53`, which is 9007199254740992, so every intermediate
 //! value is exactly representable and every sum and product of them is exact.
-//! The equality below is therefore an equality and not a tolerance, and it is
-//! the only place in this suite that compares binary64 values directly.
+//! The equality below is therefore an equality and not a tolerance.
+//!
+//! This paragraph used to end by saying it was the only place in the suite that
+//! compares binary64 values directly, and that was never true: the detection
+//! tests compared divisors against literals in the change that added them, which
+//! was already landed when the sentence was written. It is removed rather than
+//! repaired with a count, because a count in a comment drifts against the tree
+//! it describes, and it licensed nothing outside this file in the first place.
+//! Every other site owes its own argument and none of them gets one from here,
+//! which is issue #98 and, as an invariant over the tree, issue #57.
 //!
 //! That is a statement about these ranges and about nothing else. It is not the
 //! differential test against an exact oracle over arbitrary inputs, which is
