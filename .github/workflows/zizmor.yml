@@ -18,11 +18,11 @@
 # findings, and no issue on this tracker holds that backlog today.
 #
 # Rule for future workflow changes: every new or edited workflow must pass this
-# gate before merge. Keep actions SHA-pinned, keep checkout on
-# persist-credentials:false, grant write permissions per job (never
-# workflow-level), and never restore a cache in a job that publishes a release.
-# #57 is where that rule is owed a statement in the contribution guide, which is
-# the only place a contributor would look for it before writing a workflow.
+# gate before merge. The rules a workflow has to satisfy, and what this gate
+# does and does not decide about them, are in the "Changing a workflow" section
+# of CONTRIBUTING.md, which is where a contributor looks before writing one.
+# They are not restated here, because a copy in a comment drifts against the
+# section that carries the commands.
 name: Workflow Security Analysis
 
 on:
