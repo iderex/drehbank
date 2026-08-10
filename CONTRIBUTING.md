@@ -124,6 +124,73 @@ refusing an implementation that is wrong on purpose, held in the tree next to
 it, rather than a sentence saying it would.
 `index_of_without_the_shift` in `tests/support/mod.rs` is the worked example.
 
+## Changing a workflow
+
+The files in `.github/workflows/` hold more privilege than any of the code.
+Nothing under `crates/` can write to this repository or to a registry; a
+workflow can, and the release workflow of #63 will hold a write token on both.
+They are also the files least likely to be read closely in review, because a
+reviewer arriving at a change about mathematics reads the mathematics. So they
+are analysed like source, by `.github/workflows/zizmor.yml`, which collects
+every file in the directory and fails on any finding at low severity or above.
+
+Four rules for a workflow you add or edit. Each one is a shape that arrives as
+a convenience rather than as a mistake anybody can see in a diff, which is why
+they are written here rather than left to be noticed.
+
+Pin every action to a commit, with the version in a comment beside it. A tag is
+a name its own author can move afterwards, so a pin to a tag is a promise from
+outside this repository about a job that runs with a token. Nothing in the tree
+is pinned any other way:
+
+    $ git grep -n 'uses:' -- .github/workflows/ | grep -vE '@[0-9a-f]{40}' ; echo "exit=$?"
+    exit=1
+
+Check out with `persist-credentials: false`. The default writes the token into
+`.git/config`, where every later step in that job can read it, and no job here
+pushes, so no job here needs it. Ten checkouts and ten refusals:
+
+    $ git grep -c 'actions/checkout@' -- .github/workflows/ | awk -F: '{s+=$2} END {print s}'
+    10
+    $ git grep -c 'persist-credentials: false' -- .github/workflows/ | awk -F: '{s+=$2} END {print s}'
+    10
+
+Keep the workflow-level `permissions:` block read-only and grant a write scope
+on the job that needs it. The point is the blast radius of a step that turns
+out to be doing something else: a scope granted at the top is held by every job
+in the file, including the ones that only compile. Three write scopes exist,
+all of them at job level, and none at workflow level:
+
+    $ git grep -nE '^ {6}[a-z-]+: *write' -- .github/workflows/
+    .github/workflows/scorecard.yml:63:      security-events: write
+    .github/workflows/scorecard.yml:65:      id-token: write
+    .github/workflows/zizmor.yml:50:      security-events: write # upload the SARIF into the code-scanning tab
+    $ git grep -nE '^ {2}[a-z-]+: *write' -- .github/workflows/ ; echo "exit=$?"
+    exit=1
+
+Restore no cache in a job that publishes. A cache is written by earlier runs,
+including runs of a pull request from anyone, so a publishing job that restores
+one is building its artefact partly out of untrusted bytes. Nothing in the tree
+restores a cache at all today, and no job publishes anything yet, so this rule
+binds the first release workflow rather than anything already here:
+
+    $ git grep -n 'actions/cache\|cache:' -- .github/workflows/ ; echo "exit=$?"
+    exit=1
+
+One more thing that breaks silently rather than loudly. A check run takes its
+name from the job's `name:`, and #27 attaches names to the branch rule as exact
+strings, so a job renamed later detaches from the rule and leaves a tick that
+means nothing. Give every job a `name:` and treat it as an interface: it moves
+in the same change as the rule or it does not move.
+
+What the audit decides is what its findings cover, and that is narrower than
+the four rules above. It runs the regular persona rather than the pedantic one,
+so hygiene findings that are stylistic rather than security-blocking are not
+raised and nothing here refuses them. It reads the workflow files and not the
+actions they call, so an action pinned to a commit whose contents are hostile
+is pinned and refused by nothing. And a rule stated in this section that its
+findings do not cover is a rule a person applies in review.
+
 ## Sign your work
 
 Every commit carries a `Signed-off-by` line matching its author, which is the

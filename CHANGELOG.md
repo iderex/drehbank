@@ -43,6 +43,11 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. Stating the workflow rules in the contribution guide adds prose to one
+document and replaces a comment in one workflow file. No workflow step, no crate
+source and no dependency moved, so no coefficient the package returns can have
+moved either. #57
+
 None, and here that is a measured statement rather than an argument. The
 parallel product and the parallel bracket return the same bits as the sequential
 ones on every input, at every thread count, which is what
@@ -88,6 +93,16 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- A "Changing a workflow" section in the contribution guide, which is where
+  somebody about to write one looks. It carries the four rules a workflow here
+  has to satisfy, each with the command that shows the tree meets it today:
+  actions pinned to a commit, checkout without persisted credentials, write
+  scopes granted on the job rather than at workflow level, and no cache restored
+  in a job that publishes. It also says what the workflow audit does not decide,
+  so a rule the audit does not cover is visibly one a person applies. The
+  workflow file that used to restate the rules now points at the section instead
+  of carrying a copy of it. #57
 
 - The product and the Poisson bracket across a pool of threads, in
   `drehbank_core::parallel`. The pool size is the caller's, it defaults to what
