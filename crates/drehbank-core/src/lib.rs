@@ -10,7 +10,10 @@
 //! lattice of issue #39 is in [`resonance`], with the advisory detection of
 //! issue #40 beside it. The partial derivative and the
 //! Poisson bracket of issue #30 are in [`series`] too, beside the arithmetic
-//! they are built from. The Lie transforms and the estimates are still to come.
+//! they are built from. The same two kernels run across a pool of threads, with
+//! the determinism rule of `docs/decisions/0009-parallelism-and-memory.md`, are
+//! in [`parallel`], which is issue #49. The Lie transforms and the estimates
+//! are still to come.
 //!
 //! Nothing in this crate may depend on the command line, so that the boundary
 //! the dependency check applies to is the one the workspace declares.
@@ -18,11 +21,13 @@
 pub mod coefficient;
 pub mod error;
 pub mod monomial;
+pub mod parallel;
 pub mod resonance;
 pub mod series;
 
 pub use coefficient::Coefficient;
 pub use error::Error;
+pub use parallel::Pool;
 pub use resonance::{NearResonance, Proposal, Provenance, ResonanceModule};
 pub use series::Series;
 

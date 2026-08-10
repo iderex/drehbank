@@ -16,11 +16,13 @@
 use std::fmt;
 use std::fs::OpenOptions;
 use std::io::{self, Write};
+use std::num::NonZero;
 use std::path::Path;
 use std::time::{Duration, Instant};
 
 use drehbank_core::Series;
 use drehbank_core::monomial::dimension;
+use drehbank_core::parallel::{self, Pool};
 
 /// The width of one binary64 coefficient in bytes.
 ///
@@ -156,8 +158,11 @@ impl core::error::Error for RequirementError {}
 pub struct Host {
     /// The parallelism the runtime reported, or `None` where it could not say.
     pub parallelism: Option<usize>,
-    /// The pool size the caller asked for. Nothing consumes it yet.
-    pub pool: usize,
+    /// The pool size the kernel runs on.
+    ///
+    /// A [`NonZero`] because a pool of no threads is not a case with an error
+    /// message, and because the command line already refuses one.
+    pub pool: NonZero<usize>,
     /// The memory ceiling in bytes, where the caller gave one.
     pub ceiling: Option<u64>,
 }
@@ -227,18 +232,27 @@ pub struct Measurement {
     pub case: Case,
     /// How long the kernel took.
     pub elapsed: Duration,
-    /// The pool size the caller asked for.
-    pub pool: usize,
+    /// The pool size the kernel ran on.
+    pub pool: NonZero<usize>,
+    /// The chunk target the output was partitioned with.
+    pub chunk: usize,
     /// The peak live set the case was admitted against.
     pub peak_live_set: u64,
 }
 
-/// Run one case: build two full series and take their graded product.
+/// Run one case: build two full series and take their graded product across the
+/// pool.
 ///
 /// The series are filled from a fixed integer pattern rather than from a random
 /// one, so that the same case measures the same arithmetic on every host. A
 /// generator seeded from anything that moves would make two runs of one case
 /// two different measurements wearing one name.
+///
+/// The kernel is `drehbank_core::parallel::product`, so the pool size is what
+/// the run was made on and not a number nothing read. What it returns does not
+/// depend on that size, which is the property `tests/parallel.rs` in the core
+/// holds, so a speedup curve measured by varying the pool is a curve over one
+/// answer rather than over several.
 pub fn run(case: Case, host: Host) -> Result<Measurement, drehbank_core::Error> {
     let mut left: Series<f64> = Series::zero(case.freedoms, case.order)?;
     let mut right: Series<f64> = Series::zero(case.freedoms, case.order)?;
@@ -252,7 +266,7 @@ pub fn run(case: Case, host: Host) -> Result<Measurement, drehbank_core::Error> 
         }
     }
     let started = Instant::now();
-    let product = left.product(&right)?;
+    let product = parallel::product(&left, &right, Pool::of(host.pool))?;
     let elapsed = started.elapsed();
     // Read one coefficient out so that nothing in the compilation can conclude
     // the product was never wanted. A measurement of a computation that was
@@ -263,6 +277,7 @@ pub fn run(case: Case, host: Host) -> Result<Measurement, drehbank_core::Error> 
         case,
         elapsed,
         pool: host.pool,
+        chunk: Pool::of(host.pool).chunk(),
         peak_live_set: requirements(case)
             .map(|requirements| requirements.peak_live_set)
             .unwrap_or_default(),
@@ -361,19 +376,24 @@ pub fn append_record(path: &Path, line: &str) -> io::Result<()> {
 
 /// The record line for a measurement.
 ///
-/// The pool size is written as requested rather than as used, and says so. The
-/// product kernel in the tree is sequential, so the pool is a number the caller
-/// gave and nothing consumed, and a bare `pool 32` in a record would read as a
-/// run on thirty-two threads. Parallel execution is issue #49, and this line
-/// changes when that lands.
+/// The pool size is the number of threads the kernel ran on. Until the pool was
+/// consumed it was a number the caller gave and nothing read, and the line said
+/// that in place of the count; lines in that shape are already in the record and
+/// still parse, which the last test in this file covers.
+///
+/// The chunk target is written beside it because 0009 asks for the partition to
+/// be reconstructible and the series type has nowhere to carry it. A wall clock
+/// recorded without the partition it was measured under is not comparable
+/// against one measured under another.
 pub fn record_line(measurement: &Measurement, machine: &Machine) -> String {
     format!(
-        "case {} | freedoms {} | order {} | pool {} requested, kernel sequential | \
+        "case {} | freedoms {} | order {} | pool {} thread(s), chunk {} | \
          peak-live-set {} bytes | wall-clock {:?} | {}",
         measurement.case.name,
         measurement.case.freedoms,
         measurement.case.order,
         measurement.pool,
+        measurement.chunk,
         measurement.peak_live_set,
         measurement.elapsed,
         machine
@@ -402,7 +422,11 @@ pub fn recorded_cost(record: &str, case: Case) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::{BINARY64_WIDTH, Case, Host, Skip, admit, recorded_cost, requirements};
+    use super::{BINARY64_WIDTH, Case, Host, NonZero, Skip, admit, recorded_cost, requirements};
+
+    fn pool(threads: usize) -> NonZero<usize> {
+        NonZero::new(threads).expect("the counts in these tests are all above zero")
+    }
 
     /// The cost of a case is the arithmetic of 0003 and not a constant.
     ///
@@ -435,7 +459,7 @@ mod tests {
         let requirements = requirements(case).expect("this case is addressable");
         let host = Host {
             parallelism: Some(4),
-            pool: 4,
+            pool: pool(4),
             ceiling: Some(1000),
         };
         assert_eq!(
@@ -461,7 +485,7 @@ mod tests {
         let requirements = requirements(case).expect("this case is addressable");
         let host = Host {
             parallelism: Some(4),
-            pool: 4,
+            pool: pool(4),
             ceiling: None,
         };
         assert_eq!(admit(requirements, host), Err(Skip::NoCeiling));
@@ -478,7 +502,7 @@ mod tests {
         let requirements = requirements(case).expect("this case is addressable");
         let host = Host {
             parallelism: Some(4),
-            pool: 4,
+            pool: pool(4),
             ceiling: Some(1 << 30),
         };
         assert_eq!(admit(requirements, host), Ok(()));
@@ -486,11 +510,18 @@ mod tests {
 
     /// The expected cost comes out of the record, and a case with no run in it
     /// has none.
+    ///
+    /// The first two lines are in the shape the harness wrote before the pool
+    /// was consumed and the third is the shape it writes now. Both are here
+    /// because the record is append-only and the older lines stay in it: a
+    /// reader that understood only the current shape would report a case that
+    /// has been run as one that was never measured.
     #[test]
     fn the_expected_cost_is_read_from_the_record_and_is_absent_when_nothing_ran() {
         let record = "\
 case product-3f-order-8 | freedoms 3 | order 8 | pool 4 requested, kernel sequential | peak-live-set 72072 bytes | wall-clock 1.5ms | parallelism 4
 case product-3f-order-8 | freedoms 3 | order 8 | pool 4 requested, kernel sequential | peak-live-set 72072 bytes | wall-clock 2.5ms | parallelism 4
+case product-3f-order-8 | freedoms 3 | order 8 | pool 4 thread(s), chunk 256 | peak-live-set 72072 bytes | wall-clock 3.5ms | parallelism 4
 ";
         let ran = Case {
             name: "product-3f-order-8",
@@ -502,7 +533,7 @@ case product-3f-order-8 | freedoms 3 | order 8 | pool 4 requested, kernel sequen
             freedoms: 6,
             order: 10,
         };
-        assert_eq!(recorded_cost(record, ran).as_deref(), Some("2.5ms"));
+        assert_eq!(recorded_cost(record, ran).as_deref(), Some("3.5ms"));
         assert_eq!(recorded_cost(record, never), None);
     }
 }

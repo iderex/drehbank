@@ -43,6 +43,20 @@ relying on those entries existing.
 
 ### Numerical results
 
+None, and here that is a measured statement rather than an argument. The
+parallel product and the parallel bracket return the same bits as the sequential
+ones on every input, at every thread count, which is what
+`crates/drehbank-core/tests/parallel.rs` compares: the bit pattern of every
+coefficient a caller can read, over the generated corpus, at one, two, three,
+seven, eight and sixteen threads and twice at each.
+
+    cargo test --locked --offline --test parallel
+    running 6 tests
+    test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out
+
+Nothing a caller had pinned moves, because the sequential kernels are untouched
+and the new ones agree with them rather than replacing them. #49
+
 None. Correcting what the workflow files say about themselves changes comments
 and one error message. No workflow step and no crate source moved, so no
 coefficient the package returns can have moved either. #57
@@ -74,6 +88,17 @@ The scaling harness measures how long a product takes and computes what it
 would cost in memory. It changes no coefficient the package returns. #51
 
 ### Added
+
+- The product and the Poisson bracket across a pool of threads, in
+  `drehbank_core::parallel`. The pool size is the caller's, it defaults to what
+  the runtime reports, and the answer does not depend on it: the output array is
+  partitioned into contiguous chunks of a fixed length, each chunk is written by
+  one thread, and no partial sum crosses a thread. What comes back is the same
+  bits as the sequential kernel returns, at every pool size, so a run made on
+  one machine can be reproduced on another with a different core count. The
+  scaling harness now runs on the pool it is given rather than ignoring it, and
+  every line it appends carries the thread count and the chunk length the run
+  was measured under. #49
 
 - `docs/supply-chain-acceptances.md`, which holds the triage of the supply chain
   self audit. Every check that audit reported on one named commit is answered
