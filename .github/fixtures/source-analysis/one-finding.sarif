@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "CodeQL",
+          "semanticVersion": "0.0.0",
+          "rules": [
+            {
+              "id": "rust/example-finding",
+              "name": "rust/example-finding",
+              "shortDescription": {
+                "text": "A finding this repository holds so the gate is shown to refuse one"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "problem.severity": "error"
+              }
+            }
+          ]
+        }
+      },
+      "results": [
+        {
+          "ruleId": "rust/example-finding",
+          "ruleIndex": 0,
+          "level": "error",
+          "message": {
+            "text": "This result exists so that the refusal has something to refuse. It names no path in this tree, because a fixture that named one would have to be kept in step with it."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "not-a-path-in-this-tree.rs",
+                  "uriBaseId": "%SRCROOT%"
+                },
+                "region": {
+                  "startLine": 1,
+                  "startColumn": 1,
+                  "endColumn": 2
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

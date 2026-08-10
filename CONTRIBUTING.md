@@ -148,22 +148,23 @@ is pinned any other way:
 
 Check out with `persist-credentials: false`. The default writes the token into
 `.git/config`, where every later step in that job can read it, and no job here
-pushes, so no job here needs it. Ten checkouts and ten refusals:
+pushes, so no job here needs it. Eleven checkouts and eleven refusals:
 
     $ git grep -c 'actions/checkout@' -- .github/workflows/ | awk -F: '{s+=$2} END {print s}'
-    10
+    11
     $ git grep -c 'persist-credentials: false' -- .github/workflows/ | awk -F: '{s+=$2} END {print s}'
-    10
+    11
 
 Keep the workflow-level `permissions:` block read-only and grant a write scope
 on the job that needs it. The point is the blast radius of a step that turns
 out to be doing something else: a scope granted at the top is held by every job
-in the file, including the ones that only compile. Three write scopes exist,
-all of them at job level, and none at workflow level:
+in the file, including the ones that only compile. Four write scopes exist, all
+of them at job level, and none at workflow level:
 
     $ git grep -nE '^ {6}[a-z-]+: *write' -- .github/workflows/
     .github/workflows/scorecard.yml:63:      security-events: write
     .github/workflows/scorecard.yml:65:      id-token: write
+    .github/workflows/source-analysis.yml:69:      security-events: write # upload the SARIF into the code-scanning tab
     .github/workflows/zizmor.yml:50:      security-events: write # upload the SARIF into the code-scanning tab
     $ git grep -nE '^ {2}[a-z-]+: *write' -- .github/workflows/ ; echo "exit=$?"
     exit=1

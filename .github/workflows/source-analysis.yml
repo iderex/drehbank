@@ -1,0 +1,170 @@
+# Static analysis of the Rust source (CodeQL).
+#
+# The workflow files are already analysed, by zizmor.yml. Nothing analysed the
+# crates: the two workflows that publish into the code-scanning tab read the
+# workflow directory and the repository's supply-chain hygiene, and neither of
+# them looks at a line of Rust. This is the half of #57 that closes that gap.
+#
+# What it decides, and what it does not. CodeQL runs its default query suite
+# over the extracted source and reports what those queries find. It is not a
+# second opinion on the lint set: the compiler and clippy levels are in the
+# `[workspace.lints]` table and format-and-lint.yml is what refuses them. A
+# query suite and a lint set answer different questions, and a finding here is
+# one nobody was going to see from a red lint.
+#
+# What the schedule buys is narrower than it looks, and the narrow version is
+# the true one. The analyser's version is pinned with the action, so a scheduled
+# run evaluates the same queries the last one did: `tools: linked` is the
+# default and is set here anyway, because reading a result means knowing which
+# version produced it and a default that moved would move that silently. A new
+# query therefore arrives when the pin is raised, and the run on the change that
+# raises it already reaches old code, because CodeQL evaluates a database of the
+# whole tree rather than a diff. What the weekly run says is that the analysis
+# still runs at all. It stands on an action, a bundle, a runner image and a
+# registry lookup, none of which are in this tree, and on a tree nobody is
+# changing the alternative to a schedule is finding out at the next pull
+# request.
+#
+# `build-mode: none` reads the source without compiling it. The compile is
+# build-and-test.yml's job and it already runs on every one of these events; a
+# second full build here would buy the analysis nothing and cost every run the
+# minutes.
+#
+# What that costs, measured on the first run of this file rather than supposed.
+# Without a build the extractor cannot expand every macro, and 21 of the 26
+# tracked Rust files carried at least one `macro expansion failed` diagnostic:
+# `assert_eq`, `vec`, `assert`, `write`, `format`, `panic` and proptest's
+# assertions, 366 of them, all at warning level and none at error. Code inside
+# an invocation the extractor could not expand is not in the database, so no
+# query reaches it, and the test files are where most of those invocations are.
+# A run reporting no findings is reporting none over a database that does not
+# hold all of this tree, and the five files that came through clean are
+# `coefficient.rs`, `lib.rs` and three of the test-support files. The counts are
+# printed by the analyse step on every run, under "Analysis produced the
+# following metric data", which is where a change in them is visible. The step
+# below refuses findings and does not refuse a diagnostic; making it refuse one
+# would red this tree today for a limitation of the extractor rather than for
+# anything in the source.
+#
+# The rules this file has to satisfy as a workflow are in the "Changing a
+# workflow" section of CONTRIBUTING.md, which carries the command behind each
+# one. They are not restated here.
+name: Source analysis
+
+on:
+  pull_request:
+    branches: ["**"]
+  # On the mainline as well, so a green tick there means the same as a green
+  # tick on the change that produced it.
+  push:
+    branches: [main]
+  # Weekly, on a slot no other scheduled workflow in this tree holds.
+  schedule:
+    - cron: "17 3 * * 4"
+  # So the analysis can be re-run by hand after a query lands upstream, without
+  # waiting for the schedule or inventing a commit.
+  workflow_dispatch:
+
+# Explicit deny-all at workflow level; the job below grants only what it needs.
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # The check-run name is this job's `name:`. #53 names static analysis among
+  # the checks this board takes from the target gate unchanged, and #27 is where
+  # a name is attached to the branch rule as an exact string, so this one is an
+  # interface and moves only alongside the rule.
+  source-analysis:
+    name: Static analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read # check out the source to extract
+      security-events: write # upload the SARIF into the code-scanning tab
+    steps:
+      - name: Check out the source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Nothing here pushes, so the token is not persisted into .git/config.
+          persist-credentials: false
+
+      - name: Initialise CodeQL
+        uses: github/codeql-action/init@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          languages: rust
+          build-mode: none
+          # The bundle the pinned action ships with, named rather than left to a
+          # default. `latest` is the old spelling of this same value and the run
+          # says so in a deprecation warning; it does not fetch a newer bundle.
+          tools: linked
+
+      - name: Analyse and publish
+        uses: github/codeql-action/analyze@e4fba868fa4b1b91e1fdab776edc8cfbe6e9fb81 # v4.37.3
+        with:
+          category: "/language:rust"
+          # The same results twice: into the code-scanning tab, where a person
+          # reads them, and onto the runner, where the step below decides the
+          # check. Reading the file rather than the alerts API is deliberate.
+          # Alerts appear asynchronously after the upload, so a gate that asked
+          # the API would sometimes ask before the answer existed and pass a
+          # tree it had not read.
+          output: sarif-results
+
+      - name: Refuse a finding, and prove the refusal bites
+        # Two fixtures go through the same function as the real output on every
+        # run, so a change that stops the refusal refusing reds this step
+        # immediately rather than the next time CodeQL finds something. That is
+        # the near miss worth spending on here: the analysis is expected to
+        # report nothing over a package that reads no input and opens no socket,
+        # and a gate whose green means "found nothing" is indistinguishable from
+        # one whose green means "looked at nothing" until something is found.
+        #
+        # Any result at all refuses. There is no severity threshold and no
+        # acceptance list, which is a choice about size rather than an oversight:
+        # the first finding stops the gate and a person decides what it is. An
+        # acceptance route, in the shape docs/supply-chain-acceptances.md already
+        # uses for the advisory scan, is what this grows if that turns out to be
+        # too blunt.
+        run: |
+          set -euo pipefail
+
+          # A file jq cannot read fails here rather than counting as empty.
+          findings() {
+            jq '[.runs[]?.results[]?] | length' "$1"
+          }
+
+          fixtures=.github/fixtures/source-analysis
+          clean=$(findings "$fixtures/no-findings.sarif")
+          if [ "$clean" -ne 0 ]; then
+            echo "the refusal read $clean finding(s) in a report that holds none"
+            exit 1
+          fi
+          reported=$(findings "$fixtures/one-finding.sarif")
+          if [ "$reported" -ne 1 ]; then
+            echo "the refusal read $reported finding(s) in a report that holds one"
+            exit 1
+          fi
+          echo "the refusal separates a report with one finding from a report with none"
+
+          reports=$(find sarif-results -name '*.sarif' -type f | sort)
+          if [ -z "$reports" ]; then
+            echo "no SARIF was written, so nothing was analysed and nothing can be said"
+            exit 1
+          fi
+
+          total=0
+          for report in $reports; do
+            count=$(findings "$report")
+            echo "$report: $count finding(s)"
+            jq -r '.runs[]?.results[]? | "  \(.ruleId // "no rule id")  \(.level // "warning")  \(.locations[0].physicalLocation.artifactLocation.uri // "no location"):\(.locations[0].physicalLocation.region.startLine // 0)  \(.message.text // "")"' "$report"
+            total=$((total + count))
+          done
+
+          if [ "$total" -ne 0 ]; then
+            echo "static analysis reported $total finding(s); they are above and in the code-scanning tab"
+            exit 1
+          fi
+          echo "static analysis reported no findings over $(echo "$reports" | wc -l) report(s)"
