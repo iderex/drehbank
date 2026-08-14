@@ -67,7 +67,7 @@ The Lie operator of a generating function `chi` is
 
     L_chi f = {f, chi}
 
-with the generating function in the **second** argument. The canonical
+with the generating function in the second argument. The canonical
 transformation is its exponential,
 
     exp(L_chi) f = f + {f, chi} + (1/2!) {{f, chi}, chi} + ...
@@ -172,7 +172,7 @@ costs.
 
 ## 7. The sign of the frequency vector
 
-The frequency vector is taken **as given**, including negative entries. It is not
+The frequency vector is taken as given, including negative entries. It is not
 sorted, not normalised to a fixed sign, and not scaled.
 
 Forcing every `omega_j` positive would require reflecting a variable, which
@@ -255,10 +255,10 @@ Deprit's recursion is stated. The substitution into the degree grading is in
 0005, with the three factorial ratios that produce it, and it is not repeated
 here.
 
-## What this document records about two published sources
+## Two published sources a reader is likely to arrive from
 
-The two entries below are what this document records about two sources a user of
-this package is likely to arrive from. **They are claims and not measurements.**
+The two entries below are claims and not measurements. They cover two sources a
+user of this package is likely to arrive from.
 They were written from the method as it is normally presented and not from a
 reading of a copy of either text made when this document was written, and no
 command in this repository can check them. They are checked when the published
@@ -279,7 +279,7 @@ N-Body Problem".** Recorded as: blocked variable order as in item 1, `J` as in
 item 2, and the bracket as in item 3. Conversion: none for those three. Its
 treatment of the Birkhoff normal form near an elliptic equilibrium is where the
 complexification and the quadratic normalisation of items 5 and 6 have to be read
-against the table, and this document records no claim about which row applies.
+against the table, and no claim is made here about which row applies.
 
 ## Changing a convention is a breaking change
 

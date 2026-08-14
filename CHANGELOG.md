@@ -43,6 +43,11 @@ relying on those entries existing.
 
 ### Numerical results
 
+None. Rewording six documents touches prose only. No crate source, no fixture,
+no build step and no dependency moved, so no coefficient the package returns can
+have moved either, and every number, command and cross-reference inside the
+reworded paragraphs is carried over unchanged. #102
+
 None. Analysing the source adds a workflow, two report fixtures and four lines
 of the contribution guide. No crate source, no build step and no dependency
 moved, so no coefficient the package returns can have moved either. #57
@@ -181,6 +186,14 @@ would cost in memory. It changes no coefficient the package returns. #51
 - The versioning policy, this changelog and the release checklist. #64
 
 ### Changed
+
+- Six documents no longer describe themselves, and bold no longer carries
+  emphasis. A reader arriving at the conventions page met a heading about what
+  the page records rather than about the two sources it covers, and met bold on
+  words like `not` and `second` that the sentence already stresses. Bold is now
+  what it is elsewhere in the tree, the name of a field of the result file or of
+  a changelog section, so a reader can tell a name from a raised voice at a
+  glance. No claim, number or cross-reference moved. #102
 
 - The counts in the "Changing a workflow" section of the contribution guide,
   which moved when the analysis workflow landed: eleven checkouts and eleven

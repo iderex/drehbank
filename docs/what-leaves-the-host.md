@@ -154,8 +154,8 @@ before this landed. Reading only the files you name, recording no machine
 identity and quoting only your own paths are properties of the code, checked by
 the suite that tests the code, and that code does not exist yet.
 
-This section states the gap rather than covering it, and what it now says about
-the first line is what a machine refuses rather than what anyone hopes.
+The gap is open, and naming it here does not close it. What is claimed about the
+first line is what a machine refuses rather than what anyone hopes.
 
 ## If a later version can share results
 
@@ -164,8 +164,8 @@ against a published catalogue, that is federation, and federation is deliberate.
 Deliberate means all four of these at once:
 
 - you ask for it on the invocation that does it, by an argument on that command,
-- this page states, before you ask, which fields leave the host and where they
-  go, as a list and not as a description,
+- which fields leave the host and where they go are listed here before you ask,
+  as a list and not as a description,
 - it is off by default,
 - there is no way to turn it on globally and forget. No environment variable, no
   configuration file entry, no build feature and no installed default enables it.

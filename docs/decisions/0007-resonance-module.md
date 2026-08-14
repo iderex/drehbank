@@ -22,7 +22,7 @@ The conventions are 0004 and the divisor is 0004 item 8. For a frequency vector
 
 which is a subgroup of `Z^v` closed under addition and negation.
 
-It is also **saturated**: if `c k` is in `M(omega)` for some non-zero integer `c`,
+It is also saturated: if `c k` is in `M(omega)` for some non-zero integer `c`,
 then `<c k, omega> = c <k, omega> = 0` forces `<k, omega> = 0`, so `k` is in
 `M(omega)` too. That one line is the reason the canonicalisation below has a step
 that looks redundant and is not.
