@@ -14,10 +14,10 @@ project is able to make at all.
 
 Every test in the default suite runs:
 
-- with **no display** available,
-- with **no elevated privileges**,
-- in a container with **no special capabilities**,
-- with **no network**.
+- with no display available,
+- with no elevated privileges,
+- in a container with no special capabilities,
+- with no network.
 
 Anything that cannot meet all four is not in the default suite. There is no
 category of test that is in the suite and skipped on some machines, because a
@@ -84,7 +84,7 @@ published as a measurement.
 
 **Measurements that want hardware counters.** Cache behaviour and instruction
 counts need elevation on most hosts. They live in the same harness. Where a
-counter is unavailable, the harness prints that the measurement was **not made**.
+counter is unavailable, the harness prints that the measurement was not made.
 It does not substitute an estimate, and it does not report a derived number in
 the column a measured one would have occupied.
 
@@ -110,7 +110,7 @@ deliberately, and a deliberate skip cannot be read as a pass.
 
 Before any work, and before the first case, it prints:
 
-- that it is **not part of the gate**, in those words, so that a red line below is
+- that it is not part of the gate, in those words, so that a red line below is
   read as a measurement and not as a failed check,
 - the peak live set it has computed for the case it is about to run, in bytes,
   from the formula in 0005 evaluated at that order and that number of degrees of

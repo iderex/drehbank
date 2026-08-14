@@ -109,7 +109,7 @@ Where a conversion between types exists it is explicit, it is named for what it
 does, and it never improves a claim. Rounding an exact rational result to
 floating point is available and produces a floating point result carrying the
 floating point sentence. Enclosing a floating point coefficient in a degenerate
-interval is deliberately **not** available, because a degenerate interval around
+interval is deliberately not available, because a degenerate interval around
 a rounded number is an enclosure of nothing, and offering it would be a route
 from the weakest claim to the strongest one.
 
@@ -122,7 +122,7 @@ The abstraction carries addition, subtraction, multiplication, negation, zero,
 one, and construction from a small integer. That is what the series arithmetic of
 0003 and the recursion of 0005 are built from, and it is the whole list.
 
-Division is **not** on the abstraction. It appears in exactly one place, the
+Division is not on the abstraction. It appears in exactly one place, the
 solution of the homological equation, where the divisor is a small divisor and
 where each type behaves differently: floating point and rational apply the
 threshold of 0006, and the interval refuses when the enclosure contains zero.

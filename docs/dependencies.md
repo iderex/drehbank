@@ -117,7 +117,7 @@ arrive.
 
 ## What a new dependency has to carry
 
-Every entry on this page states, in this order:
+Every entry below answers four questions, in this order:
 
 **What it is for.** The operation this package cannot do without it, named
 specifically enough that somebody can check whether the crate is still doing only
