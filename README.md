@@ -20,3 +20,9 @@ there is no code for it to be a claim about.
 the field list and the gap.
 
 See [NOTICE.md](NOTICE.md) for the intended-use notice.
+
+## License
+
+AGPL-3.0, copyright 2026 Nils Lehnen.
+
+The full text is in [LICENSE](LICENSE).
