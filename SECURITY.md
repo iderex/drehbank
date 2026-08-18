@@ -5,6 +5,10 @@
 Use the private reporting form on this repository. It is under the Security tab,
 as "Report a vulnerability", and it opens a report only the maintainers can read.
 
+The form is here, without navigating:
+
+<https://github.com/iderex/drehbank/security/advisories/new>
+
 Do not open a public issue, a discussion or a pull request for a suspected
 vulnerability. The issue tracker is public, and a report there is a disclosure
 before there is a fix.
